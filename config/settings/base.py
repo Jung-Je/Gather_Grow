@@ -46,11 +46,29 @@ DJANGO_APPS = [
 ]
 
 PACKAGE = [
+    # REST API
     "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "drf_spectacular",
+    # Authentication
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    # Django Packages
+    "corsheaders",
     "channels",
+    "django_extensions",
 ]
 
-INSTALLED_APPS = DJANGO_APPS + PACKAGE
+LOCAL_APPS = [
+    "apps.users",
+]
+
+INSTALLED_APPS = DJANGO_APPS + PACKAGE + LOCAL_APPS
 
 
 MIDDLEWARE = [
