@@ -113,7 +113,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo " Deployment successful for commit ${{ github.sha }}"
+            echo "Deployment successful for commit ${{ github.sha }}"
           else
-            echo "L Deployment failed for commit ${{ github.sha }}"
+            echo "Deployment failed for commit ${{ github.sha }}"
           fi
