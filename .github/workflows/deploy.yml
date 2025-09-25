@@ -1,0 +1,119 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOCKER_REGISTRY: docker.io
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up Python and uv
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: uv sync
+
+      # 4. Run code formatting check
+      - name: Check code formatting
+        run: |
+          uv run black --check .
+          uv run isort --check-only .
+
+      # 5. Run Django checks
+      - name: Run Django system checks
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+        run: uv run python manage.py check --deploy
+
+      # 6. Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 7. Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 8. Build and push Django Docker image
+      - name: Build and push Django image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/gather-grow:latest
+            ${{ secrets.DOCKER_USERNAME }}/gather-grow:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/gather-grow:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/gather-grow:buildcache,mode=max
+
+      # 9. Build and push Nginx Docker image
+      - name: Build and push Nginx image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./resources/nginx
+          file: ./resources/nginx/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/gather-grow-nginx:latest
+            ${{ secrets.DOCKER_USERNAME }}/gather-grow-nginx:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/gather-grow-nginx:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/gather-grow-nginx:buildcache,mode=max
+
+      # 10. Deploy to Server
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Clean up old images
+            docker image prune -a --filter "until=24h"
+            
+            # Navigate to app directory
+            cd app
+            
+            # Pull latest images
+            docker pull ${{ secrets.DOCKER_USERNAME }}/gather-grow:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/gather-grow-nginx:latest
+            
+            # Update and restart services
+            docker-compose --env-file .envs/.prod.env up -d --build
+            
+            # Show running containers
+            docker ps
+
+      # 11. Notify deployment status
+      - name: Send deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo " Deployment successful for commit ${{ github.sha }}"
+          else
+            echo "L Deployment failed for commit ${{ github.sha }}"
+          fi
