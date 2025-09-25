@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      # Postgres 서비스 실행
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      # Redis 서비스 실행
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    # 최신 코드 체크아웃
+    - uses: actions/checkout@v4
+
+    # uv 설치 (Python 버전 관리 및 패키지 관리)
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+
+    # 프로젝트 의존성 설치 (pyproject.toml의 Python 3.12.6 사용)
+    - name: Install dependencies
+      run: uv sync
+
+    # Black 포맷팅 검사
+    - name: Check code formatting with Black
+      run: uv run black --check .
+
+    # isort import 정렬 검사
+    - name: Check import sorting with isort
+      run: uv run isort --check-only .
+
+    # Django 시스템 점검
+    - name: Run Django checks
+      env:
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+        DJANGO_SECRET_KEY: test-secret-key
+        DEBUG: true
+      run: uv run python manage.py check
+
+    # DB 마이그레이션 실행
+    - name: Run migrations
+      env:
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+        DJANGO_SECRET_KEY: test-secret-key
+        DEBUG: true
+      run: uv run python manage.py migrate
+
+    # Django 테스트 실행
+    - name: Run tests
+      env:
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+        DJANGO_SECRET_KEY: test-secret-key
+        DEBUG: true
+      run: uv run python manage.py test
