@@ -88,7 +88,11 @@ LOGGING = {
             "backupCount": 10,
             "formatter": "verbose",
         },
-        "console": {"level": "ERROR", "class": "logging.StreamHandler", "formatter": "verbose"},
+        "console": {
+            "level": "ERROR",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
     },
     "root": {
         "handlers": ["file", "console"],
@@ -110,8 +114,9 @@ LOGGING = {
 
 
 # JWT Authentication for production
-REST_AUTH.update({
-    "JWT_AUTH_COOKIE_SECURE": True,
-    "JWT_AUTH_COOKIE_SAMESITE": "Strict",
-})
-
+REST_AUTH.update(
+    {
+        "JWT_AUTH_COOKIE_SECURE": True,
+        "JWT_AUTH_COOKIE_SAMESITE": "Strict",
+    }
+)

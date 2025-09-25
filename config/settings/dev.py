@@ -90,7 +90,9 @@ LOGGING = {
 }
 
 # JWT Authentication for development
-REST_AUTH.update({
-    "JWT_AUTH_COOKIE_SECURE": False,
-    "JWT_AUTH_COOKIE_SAMESITE": "Lax",
-})
+REST_AUTH.update(
+    {
+        "JWT_AUTH_COOKIE_SECURE": False,
+        "JWT_AUTH_COOKIE_SAMESITE": "Lax",
+    }
+)
