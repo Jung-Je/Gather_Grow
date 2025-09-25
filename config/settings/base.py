@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-env_path = BASE_DIR / ".envs" / f".{os.getenv('DJANGO_ENV', 'prod')}.env"
+env_path = BASE_DIR / ".envs" / f".{os.getenv('DJANGO_ENV', 'dev')}.env"
 load_dotenv(dotenv_path=env_path)
 
 # Quick-start development settings - unsuitable for production
