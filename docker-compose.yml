@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스 서비스
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # 외부 접근을 위한 포트 매핑
+
+  # Redis 캐시 서비스
+  redis:
+    image: redis:7-alpine
+    # Redis 기본 포트
+    ports:
+      - "6379:6379"
+
+  # Django HTTP 서비스 (일반 웹 요청)
+  web:
+    build: .
+    command: uv run gunicorn --bind 0.0.0.0:8000 config.wsgi:application
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+    environment:
+      # Django 환경변수 설정
+      - DJANGO_ENV=${DJANGO_ENV}
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - DEBUG=${DEBUG}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+
+  # Django WebSocket 서비스 (실시간 통신)
+  websocket:
+    build: .
+    command: uv run daphne -b 0.0.0.0 -p 8001 config.asgi:application
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+      - redis
+    environment:
+      # Django 환경변수 설정
+      - DJANGO_ENV=${DJANGO_ENV}
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - DEBUG=${DEBUG}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+
+  # Nginx 웹 서버 서비스 (리버스 프록시)
+  nginx:
+    build:
+      context: ./resources/nginx
+    # HTTP 포트
+    ports:
+      - "80:80"
+    volumes:
+      - static_volume:/app/staticfiles
+    depends_on:
+      - web
+      - websocket
+
+# 영구 저장용 볼륨 정의
+volumes:
+  postgres_data:
+  static_volume:
