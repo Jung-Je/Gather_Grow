@@ -65,6 +65,7 @@ PACKAGE = [
 ]
 
 LOCAL_APPS = [
+    "apps.common",
     "apps.users",
 ]
 
