@@ -58,6 +58,9 @@ PACKAGE = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.naver",
+    "allauth.socialaccount.providers.kakao",
     # Django Packages
     "corsheaders",
     "channels",

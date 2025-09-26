@@ -32,6 +32,11 @@ class AuthenticationService:
         Returns:
             생성된 사용자 정보
         """
+        # 회원가입용 이메일 인증 확인
+        email = data.get("email")
+        if not cache.get(f"signup_email_verified:{email}"):
+            raise ValueError("이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요.")
+        
         serializer = UserSignUpSerializer(data=data)
         serializer.is_valid(raise_exception=True)
 
@@ -42,6 +47,9 @@ class AuthenticationService:
                 user.set_password(password)
                 user.save()
 
+            # 인증 완료 캐시 삭제
+            cache.delete(f"signup_email_verified:{email}")
+            
             return UserResponseSerializer(user).data
 
     @staticmethod

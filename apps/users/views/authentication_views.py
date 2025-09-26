@@ -192,43 +192,14 @@ class UserLogoutView(APIView):
             return APIResponse.from_exception(e, message="로그아웃 중 오류가 발생했습니다.")
 
 
-class PasswordResetRequestView(APIView):
-    """비밀번호 찾기 - 이메일 확인 API
-    
-    로그인 페이지에서 비밀번호를 잊어버렸을 때 사용합니다.
-    회원가입한 이메일을 확인하여 비밀번호 재설정 가능 상태로 만듭니다.
-    보안을 위해 이메일 존재 여부와 관계없이 동일한 응답을 반환합니다.
-    """
-    permission_classes = [AllowAny]
-
-    def post(self, request: Any) -> APIResponse:
-        """비밀번호 찾기를 위한 이메일 확인
-        
-        Args:
-            request: HTTP 요청 객체
-                - email (str): 회원가입한 이메일 주소
-        
-        Returns:
-            APIResponse:
-                - 200: 이메일 확인 완료 (이메일 존재 여부와 무관)
-                - 400: 이메일 주소 누락
-        """
-        email = request.data.get("email")
-        if not email:
-            return APIResponse.bad_request(message="이메일 주소를 입력해주세요.")
-
-        # 이메일 확인 및 재설정 가능 상태 설정
-        AuthenticationService.verify_email_for_password_reset(email)
-
-        # 보안을 위해 이메일 존재 여부를 노출하지 않습니다.
-        return APIResponse.success(message="이메일 확인이 완료되었습니다. 인증번호를 받으신 후 비밀번호를 재설정해주세요.")
 
 
-class ResetPasswordAfterVerificationView(APIView):
+class PasswordResetView(APIView):
     """비밀번호 재설정 API (이메일 인증 후)
     
-    이메일 인증이 완료된 후 새로운 비밀번호를 설정합니다.
-    비밀번호 찾기 프로세스의 마지막 단계입니다.
+    비밀번호 찾기에서 이메일 인증이 완료된 후 새 비밀번호를 설정합니다.
+    PasswordResetEmailCodeView로 인증번호를 받고,
+    VerifyPasswordResetCodeView로 인증을 완료한 후 사용합니다.
     """
     permission_classes = [AllowAny]
 
