@@ -67,6 +67,9 @@ PACKAGE = [
 LOCAL_APPS = [
     "apps.common",
     "apps.users",
+    "apps.communitys",
+    "apps.chat",
+    "apps.gatherings",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + PACKAGE + LOCAL_APPS
