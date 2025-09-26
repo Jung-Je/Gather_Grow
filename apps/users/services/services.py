@@ -35,8 +35,10 @@ class AuthenticationService:
         # 회원가입용 이메일 인증 확인
         email = data.get("email")
         if not cache.get(f"signup_email_verified:{email}"):
-            raise ValueError("이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요.")
-        
+            raise ValueError(
+                "이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요."
+            )
+
         serializer = UserSignUpSerializer(data=data)
         serializer.is_valid(raise_exception=True)
 
@@ -49,7 +51,7 @@ class AuthenticationService:
 
             # 인증 완료 캐시 삭제
             cache.delete(f"signup_email_verified:{email}")
-            
+
             return UserResponseSerializer(user).data
 
     @staticmethod
@@ -125,7 +127,7 @@ class AuthenticationService:
     def verify_email_for_password_reset(email: str) -> bool:
         """
         비밀번호 재설정을 위한 이메일 확인
-        
+
         비밀번호 찾기 시 해당 이메일이 존재하는지 확인합니다.
         존재하는 경우 캐시에 임시 표시를 저장합니다.
 
@@ -149,7 +151,7 @@ class AuthenticationService:
     def reset_password_after_verification(email: str, new_password: str) -> bool:
         """
         이메일 인증 후 비밀번호 재설정 (비밀번호 찾기)
-        
+
         이메일 인증이 완료된 후 새 비밀번호를 설정합니다.
         이 메서드는 로그인하지 않은 상태에서 사용됩니다.
 
@@ -159,22 +161,24 @@ class AuthenticationService:
 
         Returns:
             비밀번호 재설정 성공 여부
-            
+
         Raises:
             ValueError: 이메일 인증이 완료되지 않았거나 사용자가 없을 때
         """
         # 이메일 인증 확인
         if not cache.get(f"password_reset_verified:{email}"):
-            raise ValueError("이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요.")
-        
+            raise ValueError(
+                "이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요."
+            )
+
         try:
             user = User.objects.get(email=email)
             user.set_password(new_password)
             user.save()
-            
+
             # 인증 상태 캐시 삭제
             cache.delete(f"password_reset_verified:{email}")
-            
+
             logger.info(f"Password reset successfully for user: {email}")
             return True
         except User.DoesNotExist:
@@ -184,7 +188,7 @@ class AuthenticationService:
     def change_password(user, old_password: str, new_password: str) -> bool:
         """
         로그인한 사용자의 비밀번호 변경 (마이페이지)
-        
+
         현재 비밀번호를 확인한 후 새 비밀번호로 변경합니다.
         이 메서드는 로그인한 상태에서만 사용됩니다.
 
@@ -195,16 +199,16 @@ class AuthenticationService:
 
         Returns:
             비밀번호 변경 성공 여부
-            
+
         Raises:
             ValueError: 현재 비밀번호가 일치하지 않을 때
         """
         if not user.check_password(old_password):
             raise ValueError("현재 비밀번호가 일치하지 않습니다.")
-        
+
         user.set_password(new_password)
         user.save()
-        
+
         logger.info(f"Password changed for user: {user.email}")
         return True
 

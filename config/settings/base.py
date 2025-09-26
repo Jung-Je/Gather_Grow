@@ -309,7 +309,6 @@ ACCOUNT_LOGIN_METHODS = ["email"]
 ACCOUNT_AUTHENTICATION_METHODS = "email"
 
 # 커스텀 소셜 계정 어댑터 설정 (필요시 추가)
-# SOCIALACCOUNT_ADAPTER = "apps.users.adapters.CustomSocialAccountAdapter"
 
 REST_AUTH = {
     "USE_JWT": True,
@@ -319,9 +318,6 @@ REST_AUTH = {
     # 토큰을 본문에 포함시키지 않음
     "JWT_AUTH_COOKIE_HTTPONLY": True,
     "JWT_AUTH_COOKIE_SAMESITE": "Lax",
-    # 사용할 Serializer 설정 (필요시 커스텀 시리얼라이저 지정)
-    # "REGISTER_SERIALIZER": "apps.users.serializers.authenticate_serializer.UserSignUpSerializer",
-    # "LOGIN_SERIALIZER": "apps.users.serializers.authenticate_serializer.UserLoginSerializer",
 }
 
 

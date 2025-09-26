@@ -21,7 +21,15 @@ class ProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "email", "role", "joined_type", "membership", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "email",
+            "role",
+            "joined_type",
+            "membership",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class PasswordChangeSerializer(serializers.Serializer):

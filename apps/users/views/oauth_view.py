@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class BaseSocialLoginView(SocialLoginView):
     """소셜 로그인 기본 클래스
-    
+
     모든 소셜 로그인의 공통 기능을 제공합니다.
     토큰을 쿠키로 설정하고 통일된 응답 형식을 제공합니다.
     """
@@ -25,10 +25,10 @@ class BaseSocialLoginView(SocialLoginView):
 
     def format_response(self, response):
         """응답을 통일된 형식으로 변환
-        
+
         Args:
             response: 원본 응답 객체
-        
+
         Returns:
             APIResponse: 통일된 형식의 응답
         """
@@ -41,7 +41,9 @@ class BaseSocialLoginView(SocialLoginView):
             user_data = response.data.get("user", {})
 
             # 통일된 응답 형식으로 새 Response 생성
-            formatted_response = APIResponse.success(message="소셜 로그인에 성공했습니다.", data=user_data)
+            formatted_response = APIResponse.success(
+                message="소셜 로그인에 성공했습니다.", data=user_data
+            )
 
             # 쿠키 설정
             if access_token:
@@ -49,7 +51,9 @@ class BaseSocialLoginView(SocialLoginView):
                     key="access_token",
                     value=access_token,
                     httponly=True,
-                    max_age=settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds(),
+                    max_age=settings.SIMPLE_JWT[
+                        "ACCESS_TOKEN_LIFETIME"
+                    ].total_seconds(),
                     secure=not settings.DEBUG,
                     samesite="Lax",
                 )
@@ -59,7 +63,9 @@ class BaseSocialLoginView(SocialLoginView):
                     key="refresh_token",
                     value=refresh_token,
                     httponly=True,
-                    max_age=settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds(),
+                    max_age=settings.SIMPLE_JWT[
+                        "REFRESH_TOKEN_LIFETIME"
+                    ].total_seconds(),
                     secure=not settings.DEBUG,
                     samesite="Lax",
                 )
@@ -70,9 +76,13 @@ class BaseSocialLoginView(SocialLoginView):
         error_data = response.data if hasattr(response, "data") else {}
 
         if response.status_code == 400:
-            return APIResponse.bad_request(message="소셜 로그인에 실패했습니다.", data=error_data)
+            return APIResponse.bad_request(
+                message="소셜 로그인에 실패했습니다.", data=error_data
+            )
         elif response.status_code == 401:
-            return APIResponse.unauthorized(message="소셜 로그인에 실패했습니다.", data=error_data)
+            return APIResponse.unauthorized(
+                message="소셜 로그인에 실패했습니다.", data=error_data
+            )
         else:
             return APIResponse(
                 message="소셜 로그인에 실패했습니다.",
@@ -82,11 +92,11 @@ class BaseSocialLoginView(SocialLoginView):
 
     def post(self, request, *args, **kwargs):
         """소셜 로그인 처리
-        
+
         Args:
             request: HTTP 요청 객체
                 - access_token (str): 소셜 플랫폼에서 받은 액세스 토큰
-        
+
         Returns:
             APIResponse: 로그인 처리 결과
         """
@@ -94,27 +104,32 @@ class BaseSocialLoginView(SocialLoginView):
             response = super().post(request, *args, **kwargs)
             return self.format_response(response)
         except ValueError as e:
-            return APIResponse.from_exception(e, message="소셜 로그인에 실패했습니다.", log_error=False)
+            return APIResponse.from_exception(
+                e, message="소셜 로그인에 실패했습니다.", log_error=False
+            )
         except Exception as e:
-            return APIResponse.from_exception(e, message="소셜 로그인 중 오류가 발생했습니다.")
+            return APIResponse.from_exception(
+                e, message="소셜 로그인 중 오류가 발생했습니다."
+            )
 
 
 class NaverLoginView(BaseSocialLoginView):
     """네이버 소셜 로그인 API
-    
+
     네이버 OAuth2 인증을 통해 로그인합니다.
     """
+
     adapter_class = NaverOAuth2Adapter
     client_class = OAuth2Client
     callback_url = settings.SOCIAL_AUTH_CONFIG["NAVER"]["REDIRECT_URI"]
 
     def post(self, request, *args, **kwargs):
         """네이버 로그인 처리
-        
+
         Args:
             request: HTTP 요청 객체
                 - access_token (str): 네이버에서 받은 액세스 토큰
-        
+
         Returns:
             APIResponse:
                 - 200: 로그인 성공, 쿠키로 JWT 토큰 설정
@@ -125,20 +140,21 @@ class NaverLoginView(BaseSocialLoginView):
 
 class KakaoLoginView(BaseSocialLoginView):
     """카카오 소셜 로그인 API
-    
+
     카카오 OAuth2 인증을 통해 로그인합니다.
     """
+
     adapter_class = KakaoOAuth2Adapter
     client_class = OAuth2Client
     callback_url = settings.SOCIAL_AUTH_CONFIG["KAKAO"]["REDIRECT_URI"]
 
     def post(self, request, *args, **kwargs):
         """카카오 로그인 처리
-        
+
         Args:
             request: HTTP 요청 객체
                 - access_token (str): 카카오에서 받은 액세스 토큰
-        
+
         Returns:
             APIResponse:
                 - 200: 로그인 성공, 쿠키로 JWT 토큰 설정
@@ -149,20 +165,21 @@ class KakaoLoginView(BaseSocialLoginView):
 
 class GoogleLoginView(BaseSocialLoginView):
     """구글 소셜 로그인 API
-    
+
     구글 OAuth2 인증을 통해 로그인합니다.
     """
+
     adapter_class = GoogleOAuth2Adapter
     client_class = OAuth2Client
     callback_url = settings.SOCIAL_AUTH_CONFIG["GOOGLE"]["REDIRECT_URI"]
 
     def post(self, request, *args, **kwargs):
         """구글 로그인 처리
-        
+
         Args:
             request: HTTP 요청 객체
                 - access_token (str): 구글에서 받은 액세스 토큰
-        
+
         Returns:
             APIResponse:
                 - 200: 로그인 성공, 쿠키로 JWT 토큰 설정
