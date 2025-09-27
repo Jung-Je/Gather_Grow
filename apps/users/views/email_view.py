@@ -66,7 +66,7 @@ class SignUpEmailCodeView(APIView):
             to = [email]
 
             html_content = render_to_string(
-                "signup_verification_email.html", {"code": code, "purpose": "회원가입"}
+                "email_template.html", {"code": code, "purpose": "회원가입"}
             )
 
             msg = EmailMultiAlternatives(subject, "", from_email, to)
