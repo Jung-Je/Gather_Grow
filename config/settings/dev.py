@@ -40,7 +40,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 # Email backend for development
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# 실제 이메일 전송을 원하면 위 줄을 주석 해제하세요 (콘솔 출력용)
 
 
 # Django Debug Toolbar
