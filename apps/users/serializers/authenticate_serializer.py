@@ -17,8 +17,6 @@ class UserSignUpSerializer(serializers.ModelSerializer):
             "email",
             "password",
             "username",
-            "role",
-            "agreed_policy",
             "joined_type",
         ]
 
@@ -176,8 +174,5 @@ class UserResponseSerializer(serializers.ModelSerializer):
             "username",
             "role",
             "joined_type",
-            "membership",
             "last_login",
-            "agreed_policy",
-            "joined_type",
         ]
