@@ -10,12 +10,14 @@ User = get_user_model()
 
 class UserSignUpSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
         fields = [
             "email",
             "password",
+            "confirm_password",
             "username",
             "joined_type",
         ]
@@ -28,64 +30,59 @@ class UserSignUpSerializer(serializers.ModelSerializer):
     def validate_password(self, value):
         """
         비밀번호 유효성 검증
-        - 8자 이상
-        - 영문 대문자 포함
-        - 영문 소문자 포함
-        - 숫자 포함
-        - 특수문자 포함
-        - 공백 없음
+        - 최소 8자, 최대 50자
+        - 영문자 포함 (대/소문자 구분 없음)
+        - 숫자 포함 필수
+        - 특수문자 포함 필수
+        - 연속된 같은 문자 3개 이상 금지
+        - 공백 포함 금지
         """
-        # 1. 길이 검증 (8자 이상)
-        # if len(value) < 8:
-        #     raise serializers.ValidationError("비밀번호는 8자 이상이어야 합니다.")
+        import re
+        
+        # 1. 최소 길이 검증 (8자 이상)
+        if len(value) < 8:
+            raise serializers.ValidationError("비밀번호는 8자 이상이어야 합니다.")
 
-        # # 2. 최대 길이 검증 (보안상 128자 제한)
-        # if len(value) > 128:
-        #     raise serializers.ValidationError("비밀번호는 128자를 초과할 수 없습니다.")
+        # 2. 최대 길이 검증 (50자 제한)
+        if len(value) > 50:
+            raise serializers.ValidationError("비밀번호는 50자를 초과할 수 없습니다.")
 
-        # # 3. 공백 검증
-        # if ' ' in value:
-        #     raise serializers.ValidationError("비밀번호에는 공백이 포함될 수 없습니다.")
+        # 3. 공백 검증
+        if ' ' in value:
+            raise serializers.ValidationError("비밀번호에는 공백이 포함될 수 없습니다.")
 
-        # # 4. 영문 대문자 포함 검증
-        # if not re.search(r'[A-Z]', value):
-        #     raise serializers.ValidationError("비밀번호에는 영문 대문자가 포함되어야 합니다.")
+        # 4. 영문자 포함 검증 (대/소문자 상관없음)
+        if not re.search(r'[a-zA-Z]', value):
+            raise serializers.ValidationError("비밀번호에는 영문자가 포함되어야 합니다.")
 
-        # # 5. 영문 소문자 포함 검증
-        # if not re.search(r'[a-z]', value):
-        #     raise serializers.ValidationError("비밀번호에는 영문 소문자가 포함되어야 합니다.")
+        # 5. 숫자 포함 검증
+        if not re.search(r'[0-9]', value):
+            raise serializers.ValidationError("비밀번호에는 숫자가 포함되어야 합니다.")
 
-        # # 6. 숫자 포함 검증
-        # if not re.search(r'[0-9]', value):
-        #     raise serializers.ValidationError("비밀번호에는 숫자가 포함되어야 합니다.")
+        # 6. 특수문자 포함 검증
+        if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]', value):
+            raise serializers.ValidationError("비밀번호에는 특수문자가 포함되어야 합니다.")
 
-        # # 7. 특수문자 포함 검증
-        # if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]', value):
-        #     raise serializers.ValidationError("비밀번호에는 특수문자가 포함되어야 합니다.")
-
-        # # 8. 연속된 같은 문자 3개 이상 금지
-        # if re.search(r'(.)\1{2,}', value):
-        #     raise serializers.ValidationError("동일한 문자를 3개 이상 연속으로 사용할 수 없습니다.")
-
-        # # 9. 연속된 숫자 금지 (123, 234 등)
-        # for i in range(len(value) - 2):
-        #     if (value[i].isdigit() and value[i+1].isdigit() and value[i+2].isdigit() and
-        #         int(value[i+1]) == int(value[i]) + 1 and int(value[i+2]) == int(value[i]) + 2):
-        #         raise serializers.ValidationError("연속된 숫자 3개 이상은 사용할 수 없습니다.")
-
-        # # 10. 키보드 연속 문자 금지 (qwe, asd 등)
-        # keyboard_sequences = [
-        #     'qwertyuiop', 'asdfghjkl', 'zxcvbnm',
-        #     'abcdefghijklmnopqrstuvwxyz', '1234567890'
-        # ]
-
-        # for sequence in keyboard_sequences:
-        #     for i in range(len(sequence) - 2):
-        #         pattern = sequence[i:i+3]
-        #         if pattern.lower() in value.lower():
-        #             raise serializers.ValidationError("키보드 연속 문자는 사용할 수 없습니다.")
+        # 7. 연속된 같은 문자 3개 이상 금지
+        if re.search(r'(.)\1{2,}', value):
+            raise serializers.ValidationError("동일한 문자를 3개 이상 연속으로 사용할 수 없습니다.")
 
         return value
+    
+    def validate(self, data):
+        """비밀번호 일치 여부 확인"""
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+        
+        if password != confirm_password:
+            raise serializers.ValidationError("비밀번호가 일치하지 않습니다.")
+        
+        return data
+    
+    def create(self, validated_data):
+        """confirm_password를 제외하고 User 생성"""
+        validated_data.pop('confirm_password', None)
+        return super().create(validated_data)
 
 
 class UserLoginSerializer(serializers.Serializer):
