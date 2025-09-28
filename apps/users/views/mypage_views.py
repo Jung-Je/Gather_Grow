@@ -98,6 +98,30 @@ class PasswordChangeView(APIView):
                     message="현재 비밀번호와 새 비밀번호를 모두 입력해주세요."
                 )
 
+            # 비밀번호 유효성 검증
+            import re
+            
+            if len(new_password) < 8:
+                return APIResponse.bad_request(message="비밀번호는 8자 이상이어야 합니다.")
+            
+            if len(new_password) > 50:
+                return APIResponse.bad_request(message="비밀번호는 50자를 초과할 수 없습니다.")
+            
+            if ' ' in new_password:
+                return APIResponse.bad_request(message="비밀번호에는 공백이 포함될 수 없습니다.")
+            
+            if not re.search(r'[a-zA-Z]', new_password):
+                return APIResponse.bad_request(message="비밀번호에는 영문자가 포함되어야 합니다.")
+            
+            if not re.search(r'[0-9]', new_password):
+                return APIResponse.bad_request(message="비밀번호에는 숫자가 포함되어야 합니다.")
+            
+            if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>/?`~]', new_password):
+                return APIResponse.bad_request(message="비밀번호에는 특수문자가 포함되어야 합니다.")
+            
+            if re.search(r'(.)\1{2,}', new_password):
+                return APIResponse.bad_request(message="동일한 문자를 3개 이상 연속으로 사용할 수 없습니다.")
+
             AuthenticationService.change_password(user, old_password, new_password)
             return APIResponse.success(message="비밀번호가 성공적으로 변경되었습니다.")
 
