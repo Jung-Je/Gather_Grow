@@ -1,13 +1,16 @@
 import logging
 
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-from allauth.socialaccount.providers.kakao.views import KakaoOAuth2Adapter
 from allauth.socialaccount.providers.naver.views import NaverOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
 
 from apps.common.responses import APIResponse
+from apps.users.adapters.kakao_adapter import (
+    CustomKakaoOAuth2Adapter,
+    CustomKakaoOAuth2Client,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -142,10 +145,11 @@ class KakaoLoginView(BaseSocialLoginView):
     """카카오 소셜 로그인 API
 
     카카오 OAuth2 인증을 통해 로그인합니다.
+    Client Secret을 사용하는 보안 강화 모드를 지원합니다.
     """
 
-    adapter_class = KakaoOAuth2Adapter
-    client_class = OAuth2Client
+    adapter_class = CustomKakaoOAuth2Adapter
+    client_class = CustomKakaoOAuth2Client
     callback_url = settings.SOCIAL_AUTH_CONFIG["KAKAO"]["REDIRECT_URI"]
 
     def post(self, request, *args, **kwargs):
