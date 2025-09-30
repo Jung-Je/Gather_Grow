@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>소셜 로그인 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .social-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .social-btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: white;
+        }
+        
+        .social-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .google {
+            background: #4285F4;
+        }
+        
+        .naver {
+            background: #03C75A;
+        }
+        
+        .kakao {
+            background: #FEE500;
+            color: #000000;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            color: #999;
+            position: relative;
+        }
+        
+        .divider::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 100%;
+            height: 1px;
+            background: #ddd;
+        }
+        
+        .divider span {
+            background: white;
+            padding: 0 15px;
+            position: relative;
+        }
+        
+        .result-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        
+        #authCode {
+            word-break: break-all;
+            color: #0066cc;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        
+        .test-btn {
+            background: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+        }
+        
+        .test-btn:hover {
+            background: #5a6268;
+        }
+        
+        .test-btn:disabled {
+            background: #ced4da;
+            cursor: not-allowed;
+        }
+        
+        #apiResult {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+        
+        .config-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .config-title {
+            font-size: 14px;
+            color: #6c757d;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .config-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .config-label {
+            min-width: 100px;
+            color: #495057;
+        }
+        
+        .config-value {
+            color: #007bff;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 GatherGrow 소셜 로그인 테스트</h1>
+        <p class="subtitle">OAuth 2.0 인증 플로우 테스트 페이지</p>
+        
+        <div class="config-section">
+            <div class="config-title">⚙️ 현재 설정</div>
+            <div class="config-item">
+                <span class="config-label">Backend API:</span>
+                <span class="config-value">http://127.0.0.1:8000</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">Redirect URL:</span>
+                <span class="config-value" id="currentUrl"></span>
+            </div>
+        </div>
+        
+        <div class="social-buttons">
+            <button class="social-btn google" onclick="loginWithGoogle()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Google로 로그인
+            </button>
+            
+            <button class="social-btn naver" onclick="loginWithNaver()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M16.273 12.845L7.376 0H0v24h7.726V11.156L16.624 24H24V0h-7.727v12.845z"/>
+                </svg>
+                네이버로 로그인
+            </button>
+            
+            <button class="social-btn kakao" onclick="loginWithKakao()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 3c5.799 0 10.5 3.664 10.5 8.185 0 4.52-4.701 8.184-10.5 8.184a13.5 13.5 0 0 1-1.727-.11l-4.408 2.883c-.501.265-.678.236-.472-.413l.892-3.678c-2.88-1.46-4.785-3.99-4.785-6.866C1.5 6.665 6.201 3 12 3zm5.907 8.06l1.47-1.424a.472.472 0 0 0-.656-.678l-1.928 1.866V9.282a.472.472 0 0 0-.944 0v2.557a.471.471 0 0 0 0 .222V13.5a.472.472 0 0 0 .944 0v-1.363l.427-.413 1.428 2.033a.472.472 0 1 0 .773-.543l-1.514-2.155zm-7.519 1.763c.258 0 .451-.118.568-.323l.988-1.745.988 1.745c.117.205.31.323.568.323.517 0 .772-.408.494-.88l-1.33-2.342 1.205-2.123c.279-.472.023-.88-.494-.88-.258 0-.451.118-.568.323l-.863 1.522-.863-1.522c-.117-.205-.31-.323-.568-.323-.517 0-.772.408-.494.88l1.206 2.123L8.98 11.943c-.279.472-.023.88.494.88z"/>
+                </svg>
+                카카오로 로그인
+            </button>
+        </div>
+        
+        <div class="divider">
+            <span>인증 코드 받기</span>
+        </div>
+        
+        <div class="result-box">
+            <div class="result-title">📋 OAuth 인증 코드:</div>
+            <div id="authCode">인증 코드가 여기에 표시됩니다...</div>
+            
+            <button class="test-btn" id="testApiBtn" onclick="testApi()" disabled>
+                API 테스트 실행
+            </button>
+            
+            <div id="apiResult" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 현재 URL 표시
+        document.getElementById('currentUrl').textContent = window.location.origin + window.location.pathname;
+        
+        // URL 파라미터에서 인증 코드 추출
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const error = urlParams.get('error');
+        
+        let currentProvider = localStorage.getItem('oauth_provider');
+        
+        if (error) {
+            document.getElementById('authCode').innerHTML = `<span class="error">오류: ${error}</span>`;
+        } else if (code) {
+            document.getElementById('authCode').textContent = code;
+            document.getElementById('testApiBtn').disabled = false;
+            
+            // 자동으로 API 테스트 실행
+            if (currentProvider) {
+                setTimeout(() => testApi(), 500);
+            }
+        }
+        
+        // 각 OAuth 플랫폼별 설정
+        const oauthConfigs = {
+            google: {
+                authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+                clientId: '618416364471-lpq0r1sq12ca06bppvb12m1r9hghpkb4.apps.googleusercontent.com',
+                redirectUri: window.location.origin + window.location.pathname,  // 현재 URL 동적 사용
+                scope: 'email profile',
+                responseType: 'code',
+                accessType: 'online'
+            },
+            naver: {
+                authUrl: 'https://nid.naver.com/oauth2.0/authorize',
+                clientId: 'NMAX16K8HlvUxt1w1EkR', // 여기에 새 CLIENT_ID 입력
+                redirectUri: window.location.origin + window.location.pathname,
+                responseType: 'code',
+                state: 'RANDOM_STATE_' + Math.random().toString(36).substring(7)
+            },
+            kakao: {
+                authUrl: 'https://kauth.kakao.com/oauth/authorize',
+                clientId: '8e69dd39257ee6b858a8de11a1472c5b', // 카카오 REST API 키
+                redirectUri: window.location.origin + window.location.pathname,
+                responseType: 'code'
+            }
+        };
+        
+        function loginWithGoogle() {
+            localStorage.setItem('oauth_provider', 'google');
+            const config = oauthConfigs.google;
+            const params = new URLSearchParams({
+                client_id: config.clientId,
+                redirect_uri: config.redirectUri,
+                response_type: config.responseType,
+                scope: config.scope,
+                access_type: config.accessType
+            });
+            window.location.href = `${config.authUrl}?${params}`;
+        }
+        
+        function loginWithNaver() {
+            localStorage.setItem('oauth_provider', 'naver');
+            const config = oauthConfigs.naver;
+            const params = new URLSearchParams({
+                client_id: config.clientId,
+                redirect_uri: config.redirectUri,
+                response_type: config.responseType,
+                state: config.state
+            });
+            window.location.href = `${config.authUrl}?${params}`;
+        }
+        
+        function loginWithKakao() {
+            localStorage.setItem('oauth_provider', 'kakao');
+            const config = oauthConfigs.kakao;
+            const params = new URLSearchParams({
+                client_id: config.clientId,
+                redirect_uri: config.redirectUri,
+                response_type: config.responseType
+            });
+            window.location.href = `${config.authUrl}?${params}`;
+        }
+        
+        async function testApi() {
+            const provider = currentProvider || prompt('어느 플랫폼인가요? (google/naver/kakao)');
+            if (!provider) return;
+            
+            const apiUrl = `http://127.0.0.1:8000/api/v1/users/social/${provider}/`;
+            const resultDiv = document.getElementById('apiResult');
+            const testBtn = document.getElementById('testApiBtn');
+            
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<span class="loading"></span> 요청 중...';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '🔄 API 요청 중...';
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        code: code
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `✅ 로그인 성공!\n\n${JSON.stringify(data, null, 2)}`;
+                    
+                    // 쿠키 확인
+                    setTimeout(() => {
+                        resultDiv.innerHTML += '\n\n🍪 쿠키가 설정되었습니다. 개발자 도구에서 확인하세요.';
+                    }, 1000);
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `❌ 오류 발생:\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `❌ 네트워크 오류:\n\n${error.message}`;
+            } finally {
+                testBtn.disabled = false;
+                testBtn.innerHTML = 'API 테스트 실행';
+                localStorage.removeItem('oauth_provider');
+            }
+        }
+        
+        // 페이지 로드 시 이전 상태 정리
+        if (!code) {
+            localStorage.removeItem('oauth_provider');
+        }
+    </script>
+</body>
+</html>
