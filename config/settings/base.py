@@ -253,6 +253,7 @@ SOCIALACCOUNT_PROVIDERS = {
         }
     },
     "kakao": {
+        "ADAPTER": "apps.users.adapters.kakao_adapter.CustomKakaoOAuth2Adapter",
         "APP": {
             "client_id": SOCIAL_AUTH_CONFIG["KAKAO"]["CLIENT_ID"],
             "secret": SOCIAL_AUTH_CONFIG["KAKAO"]["SECRET_KEY"],
