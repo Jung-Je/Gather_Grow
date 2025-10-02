@@ -310,7 +310,7 @@
             google: {
                 authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
                 clientId: '618416364471-lpq0r1sq12ca06bppvb12m1r9hghpkb4.apps.googleusercontent.com',
-                redirectUri: window.location.origin + window.location.pathname,  // 현재 URL 동적 사용
+                redirectUri: 'http://localhost:8080/index.html',  // 고정된 리다이렉트 URI
                 scope: 'email profile',
                 responseType: 'code',
                 accessType: 'online'
@@ -318,14 +318,14 @@
             naver: {
                 authUrl: 'https://nid.naver.com/oauth2.0/authorize',
                 clientId: 'NMAX16K8HlvUxt1w1EkR', // 여기에 새 CLIENT_ID 입력
-                redirectUri: window.location.origin + window.location.pathname,
+                redirectUri: 'http://localhost:8080/index.html',
                 responseType: 'code',
                 state: 'RANDOM_STATE_' + Math.random().toString(36).substring(7)
             },
             kakao: {
                 authUrl: 'https://kauth.kakao.com/oauth/authorize',
                 clientId: '8e69dd39257ee6b858a8de11a1472c5b', // 카카오 REST API 키
-                redirectUri: window.location.origin + window.location.pathname,
+                redirectUri: 'http://localhost:8080/index.html',
                 responseType: 'code'
             }
         };
