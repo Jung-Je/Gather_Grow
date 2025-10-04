@@ -309,6 +309,12 @@ JWT_AUTH_COOKIE_SAMESITE = "Lax"
 ACCOUNT_LOGIN_METHODS = ["email"]
 ACCOUNT_AUTHENTICATION_METHODS = "email"
 
+# allauth 소셜 계정 설정
+SOCIALACCOUNT_AUTO_SIGNUP = True  # 자동으로 가입 처리
+SOCIALACCOUNT_EMAIL_REQUIRED = True  # 이메일 필수
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"  # 이메일 인증 안함
+SOCIALACCOUNT_QUERY_EMAIL = True  # 이메일 정보 가져오기
+
 # 커스텀 소셜 계정 어댑터 설정 (필요시 추가)
 
 REST_AUTH = {
@@ -319,6 +325,9 @@ REST_AUTH = {
     # 토큰을 본문에 포함시키지 않음
     "JWT_AUTH_COOKIE_HTTPONLY": True,
     "JWT_AUTH_COOKIE_SAMESITE": "Lax",
+    # 소셜 로그인 시 회원가입 리다이렉트 비활성화
+    "REGISTER_SERIALIZER": "dj_rest_auth.registration.serializers.RegisterSerializer",
+    "SOCIAL_LOGIN_SERIALIZER": "dj_rest_auth.registration.serializers.SocialLoginSerializer",
 }
 
 
