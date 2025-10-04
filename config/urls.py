@@ -39,6 +39,8 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc",
     ),
+    # allauth URLs (dj-rest-auth가 참조하는 URL들)
+    path("accounts/", include("allauth.urls")),
     # Apps URLs
     path("api/v1/users/", include("apps.users.urls")),
     # path("api/v1/communities/", include("apps.communitys.urls")),
