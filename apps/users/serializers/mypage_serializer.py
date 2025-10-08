@@ -17,7 +17,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "location",
             "role",
             "joined_type",
-            "membership",
             "created_at",
             "updated_at",
         ]
@@ -26,7 +25,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "email",
             "role",
             "joined_type",
-            "membership",
             "created_at",
             "updated_at",
         ]
