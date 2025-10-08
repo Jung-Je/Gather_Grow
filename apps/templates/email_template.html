@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .container {{
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }}
+        .header {{
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }}
+        .content {{
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }}
+        .code {{
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+            text-align: center;
+            padding: 20px;
+            background-color: #e8f5e8;
+            border-radius: 10px;
+            margin: 20px 0;
+        }}
+        .footer {{
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 20px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>GatherGrow 이메일 인증</h1>
+        </div>
+        <div class="content">
+            <p>안녕하세요!</p>
+            <p>GatherGrow서비스 이용을 위한 이메일 인증번호입니다.</p>
+
+            <div class="code">{{code}}</div>
+
+            <p>이 인증번호는 <strong>5분간</strong> 유효합니다.</p>
+            <p>본인이 요청하지 않았다면 이 이메일을 무시해주세요.</p>
+
+            <div class="footer">
+                <p>감사합니다.<br>GatherGrow팀</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -34,13 +34,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://localhost:8080",  # 소셜 로그인 테스트 페이지
+    "http://127.0.0.1:8080",  # 소셜 로그인 테스트 페이지
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
 
 # Email backend for development
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# 실제 이메일 전송을 원하면 위 줄을 주석 해제하세요 (콘솔 출력용)
 
 
 # Django Debug Toolbar
