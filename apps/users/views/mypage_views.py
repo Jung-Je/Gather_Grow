@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
-from apps.users.serializers.mypage_serializer import ProfileSerializer
+from apps.users.serializers.mypage_serializer import ProfileSerializer, PasswordChangeSerializer
 from apps.users.services.services import AuthenticationService
 
 
@@ -81,6 +81,7 @@ class PasswordChangeView(APIView):
             request: HTTP 요청 객체
                 - old_password (str): 현재 비밀번호
                 - new_password (str): 새 비밀번호
+                - confirm_new_password (str): 새 비밀번호 확인
 
         Returns:
             APIResponse:
@@ -90,15 +91,18 @@ class PasswordChangeView(APIView):
         """
         try:
             user = request.user
-            old_password = request.data.get("old_password")
-            new_password = request.data.get("new_password")
-
-            if not old_password or not new_password:
+            serializer = PasswordChangeSerializer(
+                user, data=request.data, context={"request": request}
+            )
+            
+            if not serializer.is_valid():
                 return APIResponse.bad_request(
-                    message="현재 비밀번호와 새 비밀번호를 모두 입력해주세요."
+                    message="비밀번호 변경 실패",
+                    data=serializer.errors
                 )
-
+            
             # 비밀번호 유효성 검증
+            new_password = serializer.validated_data['new_password']
             import re
 
             if len(new_password) < 8:
@@ -146,7 +150,8 @@ class PasswordChangeView(APIView):
                         message=f"'{char}' 문자는 3번 이상 사용할 수 없습니다."
                     )
 
-            AuthenticationService.change_password(user, old_password, new_password)
+            # Serializer를 통해 비밀번호 변경
+            serializer.save()
             return APIResponse.success(message="비밀번호가 성공적으로 변경되었습니다.")
 
         except ValueError as e:
