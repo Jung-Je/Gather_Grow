@@ -44,7 +44,7 @@ class PasswordChangeSerializer(serializers.Serializer):
 
     def validate(self, data):
         """새 비밀번호와 확인 비밀번호 일치 검증"""
-        if data.get('new_password') != data.get('confirm_new_password'):
+        if data.get("new_password") != data.get("confirm_new_password"):
             raise serializers.ValidationError("새 비밀번호가 일치하지 않습니다.")
         return data
 

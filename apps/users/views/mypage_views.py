@@ -4,7 +4,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
-from apps.users.serializers.mypage_serializer import ProfileSerializer, PasswordChangeSerializer
+from apps.users.serializers.mypage_serializer import (
+    PasswordChangeSerializer,
+    ProfileSerializer,
+)
 from apps.users.services.services import AuthenticationService
 
 
@@ -94,15 +97,14 @@ class PasswordChangeView(APIView):
             serializer = PasswordChangeSerializer(
                 user, data=request.data, context={"request": request}
             )
-            
+
             if not serializer.is_valid():
                 return APIResponse.bad_request(
-                    message="비밀번호 변경 실패",
-                    data=serializer.errors
+                    message="비밀번호 변경 실패", data=serializer.errors
                 )
-            
+
             # 비밀번호 유효성 검증
-            new_password = serializer.validated_data['new_password']
+            new_password = serializer.validated_data["new_password"]
             import re
 
             if len(new_password) < 8:
