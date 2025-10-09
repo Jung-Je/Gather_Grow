@@ -65,18 +65,53 @@ class AuthenticationService:
         Returns:
             (사용자 정보, access_token, refresh_token) 튜플
         """
-        serializer = UserLoginSerializer(data=data)
-        serializer.is_valid(raise_exception=True)
+        email = data.get("email")
 
-        user = serializer.validated_data["user"]
-        refresh = RefreshToken.for_user(user)
+        # 로그인 실패 횟수 체크
+        try:
+            user = User.objects.get(email=email)
 
-        # 마지막 로그인 시간 업데이트
-        user.last_login = timezone.now()
-        user.save(update_fields=["last_login"])
+            # 5회 이상 실패시 계정 잠금 (30분)
+            if user.failed_login_attempts >= 5:
+                if user.last_failed_login:
+                    time_passed = timezone.now() - user.last_failed_login
+                    if time_passed.total_seconds() < 1800:  # 30분
+                        remaining_time = int(1800 - time_passed.total_seconds())
+                        raise ValueError(
+                            f"로그인 시도 횟수를 초과했습니다. {remaining_time}초 후에 다시 시도해주세요."
+                        )
+                    else:
+                        # 30분 지나면 초기화
+                        user.failed_login_attempts = 0
+                        user.save(update_fields=["failed_login_attempts"])
+        except User.DoesNotExist:
+            pass  # 존재하지 않는 이메일은 아래 serializer에서 처리
 
-        user_data = UserResponseSerializer(user).data
-        return user_data, str(refresh.access_token), str(refresh)
+        try:
+            serializer = UserLoginSerializer(data=data)
+            serializer.is_valid(raise_exception=True)
+
+            user = serializer.validated_data["user"]
+            refresh = RefreshToken.for_user(user)
+
+            # 로그인 성공시 실패 횟수 초기화
+            user.failed_login_attempts = 0
+            user.last_login = timezone.now()
+            user.save(update_fields=["failed_login_attempts", "last_login"])
+
+            user_data = UserResponseSerializer(user).data
+            return user_data, str(refresh.access_token), str(refresh)
+
+        except Exception as e:
+            # 로그인 실패시 횟수 증가
+            try:
+                user = User.objects.get(email=email)
+                user.failed_login_attempts += 1
+                user.last_failed_login = timezone.now()
+                user.save(update_fields=["failed_login_attempts", "last_failed_login"])
+            except User.DoesNotExist:
+                pass
+            raise e
 
     @staticmethod
     def refresh_token(refresh_token: str) -> Tuple[str, str]:
