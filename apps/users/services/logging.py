@@ -1,5 +1,3 @@
-"""민감정보 마스킹을 위한 로깅 필터"""
-
 import logging
 import re
 
