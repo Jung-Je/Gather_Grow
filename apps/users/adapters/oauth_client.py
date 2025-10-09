@@ -1,8 +1,3 @@
-"""OAuth2 Client Wrapper
-
-dj-rest-auth와의 호환성을 위한 OAuth2Client 래퍼
-"""
-
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
 
 
