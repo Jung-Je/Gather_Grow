@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
+from apps.users.services.decorators import email_rate_limit
 from apps.users.services.email_service import EmailVerificationService
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class SignUpEmailCodeView(APIView):
 
     permission_classes = [AllowAny]
 
+    @email_rate_limit
     def post(self, request: Any) -> APIResponse:
         """회원가입 인증번호 발송 처리
 
@@ -110,6 +112,7 @@ class PasswordResetEmailCodeView(APIView):
 
     permission_classes = [AllowAny]
 
+    @email_rate_limit
     def post(self, request: Any) -> APIResponse:
         """비밀번호 찾기 인증번호 발송 처리
 
