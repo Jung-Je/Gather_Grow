@@ -121,6 +121,10 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     )
     location = models.CharField(max_length=100, blank=True, null=True)
 
+    # 보안 관련 필드
+    failed_login_attempts = models.IntegerField(default=0)
+    last_failed_login = models.DateTimeField(null=True, blank=True)
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
