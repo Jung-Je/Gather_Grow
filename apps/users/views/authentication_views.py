@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
+from apps.users.services.decorators import login_rate_limit, password_reset_rate_limit
 from apps.users.services.services import AuthenticationService
 from apps.users.services.validators import PasswordValidator
 
@@ -63,6 +64,7 @@ class UserLoginView(APIView):
 
     permission_classes = [AllowAny]
 
+    @login_rate_limit
     def post(self, request: Any) -> APIResponse:
         """로그인 처리
 
@@ -231,6 +233,7 @@ class PasswordResetView(APIView):
 
     permission_classes = [AllowAny]
 
+    @password_reset_rate_limit
     def post(self, request: Any) -> APIResponse:
         """이메일 인증 후 비밀번호 재설정
 
