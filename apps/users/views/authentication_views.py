@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
 from apps.users.services.services import AuthenticationService
+from apps.users.services.validators import PasswordValidator
 
 logger = logging.getLogger(__name__)
 
@@ -259,52 +260,9 @@ class PasswordResetView(APIView):
                 return APIResponse.bad_request(message="비밀번호가 일치하지 않습니다.")
 
             # 비밀번호 유효성 검증
-            import re
-
-            if len(password) < 8:
-                return APIResponse.bad_request(
-                    message="비밀번호는 8자 이상이어야 합니다."
-                )
-
-            if len(password) > 50:
-                return APIResponse.bad_request(
-                    message="비밀번호는 50자를 초과할 수 없습니다."
-                )
-
-            if " " in password:
-                return APIResponse.bad_request(
-                    message="비밀번호에는 공백이 포함될 수 없습니다."
-                )
-
-            if not re.search(r"[a-zA-Z]", password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 영문자가 포함되어야 합니다."
-                )
-
-            if not re.search(r"[0-9]", password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 숫자가 포함되어야 합니다."
-                )
-
-            if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>/?`~]', password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 특수문자가 포함되어야 합니다."
-                )
-
-            if re.search(r"(.)\1{2,}", password):
-                return APIResponse.bad_request(
-                    message="동일한 문자를 3개 이상 연속으로 사용할 수 없습니다."
-                )
-
-            # 동일한 문자(숫자/특수문자) 3번 이상 사용 금지
-            from collections import Counter
-
-            char_count = Counter(password)
-            for char, count in char_count.items():
-                if count >= 3 and (char.isdigit() or not char.isalpha()):
-                    return APIResponse.bad_request(
-                        message=f"'{char}' 문자는 3번 이상 사용할 수 없습니다."
-                    )
+            error_message = PasswordValidator.validate(password)
+            if error_message:
+                return APIResponse.bad_request(message=error_message)
 
             AuthenticationService.reset_password_after_verification(email, password)
             return APIResponse.success(message="비밀번호가 성공적으로 변경되었습니다.")
