@@ -71,8 +71,17 @@ LOGGING = {
             "style": "{",
         },
     },
+    "filters": {
+        "sensitive_data": {
+            "()": "apps.users.services.logging.SensitiveDataFilter",
+        },
+    },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+            "filters": ["sensitive_data"],
+        },
     },
     "root": {
         "handlers": ["console"],
