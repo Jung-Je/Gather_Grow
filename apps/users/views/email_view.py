@@ -1,17 +1,16 @@
 import logging
-import random
 from typing import Any
 
-from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
+from apps.users.services.email_service import EmailVerificationService
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 class SignUpEmailCodeView(APIView):
@@ -42,46 +41,20 @@ class SignUpEmailCodeView(APIView):
             return APIResponse.bad_request(message="이메일은 필수입니다.")
 
         # 이미 가입된 이메일인지 확인
-        from django.contrib.auth import get_user_model
-
-        User = get_user_model()
         if User.objects.filter(email=email).exists():
             return APIResponse.bad_request(message="이미 사용 중인 이메일입니다.")
 
-        # 30초 이내 재전송 막기 위한 키 체크
-        resend_flag_key = f"signup_resend_flag:{email}"
-        if cache.get(resend_flag_key):
-            return APIResponse.too_many_requests(
-                message="인증번호는 30초에 한 번만 재전송할 수 있습니다."
-            )
+        # 인증번호 발송
+        success, error_message = EmailVerificationService.send_verification_code(
+            email=email, purpose="signup", subject="[GatherGrow] 회원가입 인증번호"
+        )
 
-        code = f"{random.randint(100000, 999999)}"
-
-        # 5분간 인증번호 저장 (회원가입용)
-        cache.set(f"signup_verify_code:{email}", code, timeout=300)  # 5분 유효
-
-        try:
-            subject = "[GatherGrow] 회원가입 인증번호"
-            from_email = settings.EMAIL_HOST_USER
-            to = [email]
-
-            html_content = render_to_string(
-                "email_template.html", {"code": code, "purpose": "회원가입"}
-            )
-
-            msg = EmailMultiAlternatives(subject, "", from_email, to)
-            msg.attach_alternative(html_content, "text/html")
-            msg.send()
-
-            # 재전송 제한용 플래그 30초 설정
-            cache.set(resend_flag_key, True, timeout=30)
-
+        if success:
             return APIResponse.success(message="회원가입 인증번호가 전송되었습니다.")
-
-        except Exception as e:
-            return APIResponse.from_exception(
-                e, message="인증번호 발송 중 오류가 발생했습니다."
-            )
+        elif "30초" in (error_message or ""):
+            return APIResponse.too_many_requests(message=error_message)
+        else:
+            return APIResponse.bad_request(message=error_message)
 
 
 class VerifySignUpCodeView(APIView):
@@ -112,26 +85,20 @@ class VerifySignUpCodeView(APIView):
         if not email or not code:
             return APIResponse.bad_request(message="이메일과 인증번호는 필수입니다.")
 
-        # 캐시에서 회원가입용 인증번호 확인
-        cached_code = cache.get(f"signup_verify_code:{email}")
-
-        if not cached_code:
-            return APIResponse.bad_request(
-                message="인증번호가 만료되었습니다. 다시 요청해주세요."
-            )
-
-        if cached_code != code:
-            return APIResponse.bad_request(message="인증번호가 일치하지 않습니다.")
-
-        # 인증 성공시 캐시에서 삭제
-        cache.delete(f"signup_verify_code:{email}")
-
-        # 회원가입 인증 성공 표시 (5분간 유효)
-        cache.set(f"signup_email_verified:{email}", True, timeout=300)
-
-        return APIResponse.success(
-            message="이메일 인증이 완료되었습니다. 회원가입을 계속해주세요."
+        # 인증번호 확인
+        success, error_message = EmailVerificationService.verify_code(
+            email=email, code=code, purpose="signup"
         )
+
+        if success:
+            # signup_email_verified 키 설정 (기존 코드와의 호환성 유지)
+            cache.set(f"signup_email_verified:{email}", True, timeout=300)
+
+            return APIResponse.success(
+                message="이메일 인증이 완료되었습니다. 회원가입을 계속해주세요."
+            )
+        else:
+            return APIResponse.bad_request(message=error_message)
 
 
 class PasswordResetEmailCodeView(APIView):
@@ -160,47 +127,22 @@ class PasswordResetEmailCodeView(APIView):
         if not email:
             return APIResponse.bad_request(message="이메일을 입력해주세요.")
 
-        # 30초 이내 재전송 막기
-        resend_flag_key = f"password_reset_resend_flag:{email}"
-        if cache.get(resend_flag_key):
-            return APIResponse.too_many_requests(
-                message="인증번호는 30초에 한 번만 재전송할 수 있습니다."
-            )
-
         # 이메일이 존재하는지 확인 (보안상 결과는 노출하지 않음)
-        from django.contrib.auth import get_user_model
-
-        User = get_user_model()
         user_exists = User.objects.filter(email=email).exists()
 
         if user_exists:
-            code = f"{random.randint(100000, 999999)}"
-            # 5분간 인증번호 저장 (비밀번호 찾기용)
-            cache.set(f"password_reset_code:{email}", code, timeout=300)
+            # 인증번호 발송
+            success, error_message = EmailVerificationService.send_verification_code(
+                email=email,
+                purpose="password_reset",
+                subject="[GatherGrow] 비밀번호 재설정 인증번호",
+            )
 
-            try:
-                subject = "[GatherGrow] 비밀번호 재설정 인증번호"
-                from_email = settings.EMAIL_HOST_USER
-                to = [email]
-
-                html_content = render_to_string(
-                    "password_reset_email.html",
-                    {"code": code, "purpose": "비밀번호 재설정"},
-                )
-
-                msg = EmailMultiAlternatives(subject, "", from_email, to)
-                msg.attach_alternative(html_content, "text/html")
-                msg.send()
-
-                logger.info(f"Password reset code sent to {email}")
-            except Exception as e:
-                logger.error(f"Failed to send password reset email: {e}")
+            if not success and "30초" in (error_message or ""):
+                return APIResponse.too_many_requests(message=error_message)
         else:
             # 존재하지 않는 이메일이어도 로그만 남기고 동일한 응답
             logger.info(f"Password reset requested for non-existent email: {email}")
-
-        # 재전송 제한 설정 (이메일 존재 여부와 무관)
-        cache.set(resend_flag_key, True, timeout=30)
 
         # 보안을 위해 이메일 존재 여부와 관계없이 동일한 응답
         return APIResponse.success(
@@ -236,23 +178,17 @@ class VerifyPasswordResetCodeView(APIView):
         if not email or not code:
             return APIResponse.bad_request(message="이메일과 인증번호를 입력해주세요.")
 
-        # 캐시에서 비밀번호 재설정용 인증번호 확인
-        cached_code = cache.get(f"password_reset_code:{email}")
-
-        if not cached_code:
-            return APIResponse.bad_request(
-                message="인증번호가 만료되었습니다. 다시 요청해주세요."
-            )
-
-        if cached_code != code:
-            return APIResponse.bad_request(message="인증번호가 일치하지 않습니다.")
-
-        # 인증 성공시 캐시에서 삭제
-        cache.delete(f"password_reset_code:{email}")
-
-        # 비밀번호 재설정 가능 상태 표시 (5분간 유효)
-        cache.set(f"password_reset_verified:{email}", True, timeout=300)
-
-        return APIResponse.success(
-            message="이메일 인증이 완료되었습니다. 새 비밀번호를 설정해주세요."
+        # 인증번호 확인
+        success, error_message = EmailVerificationService.verify_code(
+            email=email, code=code, purpose="password_reset"
         )
+
+        if success:
+            # password_reset_verified 키 설정 (기존 코드와의 호환성 유지)
+            cache.set(f"password_reset_verified:{email}", True, timeout=300)
+
+            return APIResponse.success(
+                message="이메일 인증이 완료되었습니다. 새 비밀번호를 설정해주세요."
+            )
+        else:
+            return APIResponse.bad_request(message=error_message)
