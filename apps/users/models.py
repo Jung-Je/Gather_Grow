@@ -125,6 +125,11 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     failed_login_attempts = models.IntegerField(default=0)
     last_failed_login = models.DateTimeField(null=True, blank=True)
 
+    # 탈퇴 관련 필드
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deletion_scheduled_at = models.DateTimeField(null=True, blank=True)
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
