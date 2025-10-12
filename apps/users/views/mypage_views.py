@@ -166,19 +166,19 @@ class PasswordChangeView(APIView):
 
 class AccountDeleteView(APIView):
     """회원 탈퇴 API
-    
+
     개인정보보호법에 따라 즉시 삭제하지 않고 90일간 보관 후 완전 삭제됩니다.
     """
-    
+
     permission_classes = [IsAuthenticated]
-    
+
     def delete(self, request: Any) -> APIResponse:
         """회원 탈퇴 처리
-        
+
         Args:
             request: HTTP 요청 객체
                 - password (str, optional): 비밀번호 (일반 가입자만 필요)
-        
+
         Returns:
             APIResponse:
                 - 200: 탈퇴 성공
@@ -188,18 +188,18 @@ class AccountDeleteView(APIView):
         try:
             user = request.user
             password = request.data.get("password")
-            
+
             AuthenticationService.delete_account(user, password)
-            
+
             # 쿠키 삭제
             response = APIResponse.success(
                 message="회원 탈퇴가 완료되었습니다. 90일 후 모든 데이터가 완전히 삭제됩니다."
             )
             response.delete_cookie("refresh_token")
             response.delete_cookie("access_token")
-            
+
             return response
-            
+
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
         except Exception as e:

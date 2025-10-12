@@ -13,7 +13,11 @@ from apps.users.views.email_view import (
     VerifyPasswordResetCodeView,
     VerifySignUpCodeView,
 )
-from apps.users.views.mypage_views import AccountDeleteView, PasswordChangeView, ProfileView
+from apps.users.views.mypage_views import (
+    AccountDeleteView,
+    PasswordChangeView,
+    ProfileView,
+)
 from apps.users.views.oauth_view import GoogleLoginView, KakaoLoginView, NaverLoginView
 
 app_name = "users"

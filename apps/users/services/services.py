@@ -259,41 +259,43 @@ class AuthenticationService:
             사용자 정보
         """
         return UserResponseSerializer(user).data
-    
+
     @staticmethod
     def delete_account(user, password: str = None) -> bool:
         """
         회원 탈퇴 처리 (소프트 삭제)
-        
+
         개인정보보호법에 따라 즉시 삭제하지 않고 90일 후 완전 삭제
-        
+
         Args:
             user: 탈퇴할 사용자
             password: 비밀번호 (일반 가입자만 필요)
-            
+
         Returns:
             탈퇴 성공 여부
-            
+
         Raises:
             ValueError: 비밀번호 불일치 또는 이미 탈퇴한 회원
         """
         # 이미 탈퇴한 회원인지 확인
         if user.is_deleted:
             raise ValueError("이미 탈퇴한 회원입니다.")
-        
+
         # 일반 가입자는 비밀번호 확인
         if user.joined_type == "normal":
             if not password:
                 raise ValueError("비밀번호를 입력해주세요.")
             if not user.check_password(password):
                 raise ValueError("비밀번호가 일치하지 않습니다.")
-        
+
         # 소프트 삭제 처리
         user.is_deleted = True
         user.is_active = False  # 로그인 차단
         user.deleted_at = timezone.now()
-        user.deletion_scheduled_at = timezone.now() + timezone.timedelta(days=90)  # 90일 후 완전 삭제
-        
+        user.deletion_scheduled_at = timezone.now() + timezone.timedelta(
+            days=90
+        )  # 90일 후 완전 삭제
+
         # 개인정보 마스킹 (복구 불가능하도록)
         user.email = f"deleted_{user.id}@deleted.com"
         user.username = f"탈퇴회원_{user.id}"
@@ -301,29 +303,28 @@ class AuthenticationService:
         user.profile_image = None
         user.education_level = None
         user.location = None
-        
+
         user.save()
-        
+
         logger.info(f"User {user.id} account deleted (soft delete)")
         return True
-    
+
     @staticmethod
     def permanently_delete_expired_users():
         """
         탈퇴 후 90일이 지난 회원 데이터 완전 삭제
-        
+
         이 메서드는 주기적으로 실행되어야 함 (예: 매일 자정 크론잡)
         """
         expired_users = User.objects.filter(
-            is_deleted=True,
-            deletion_scheduled_at__lte=timezone.now()
+            is_deleted=True, deletion_scheduled_at__lte=timezone.now()
         )
-        
+
         count = expired_users.count()
         for user in expired_users:
             user_id = user.id
             user.delete()  # 완전 삭제
             logger.info(f"User {user_id} permanently deleted")
-        
+
         logger.info(f"Permanently deleted {count} expired user accounts")
         return count
