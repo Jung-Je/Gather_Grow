@@ -286,7 +286,9 @@ class PasswordResetTestCase(BaseUserTestCase):
 
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["message"], "비밀번호가 성공적으로 변경되었습니다.")
+        self.assertEqual(
+            response.data["message"], "비밀번호가 성공적으로 변경되었습니다."
+        )
 
         # 새 비밀번호로 로그인 확인
         user.refresh_from_db()
@@ -414,7 +416,9 @@ class PasswordChangeTestCase(BaseUserTestCase):
 
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["message"], "비밀번호가 성공적으로 변경되었습니다.")
+        self.assertEqual(
+            response.data["message"], "비밀번호가 성공적으로 변경되었습니다."
+        )
 
         user.refresh_from_db()
         self.assertTrue(user.check_password("NewPass456!@#"))
@@ -530,7 +534,9 @@ class AccountDeletionTestCase(BaseUserTestCase):
 
         response = self.client.delete(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("90일 후 모든 데이터가 완전히 삭제됩니다", response.data["message"])
+        self.assertIn(
+            "90일 후 모든 데이터가 완전히 삭제됩니다", response.data["message"]
+        )
 
         user.refresh_from_db()
         self.assertTrue(user.is_deleted)
@@ -687,19 +693,17 @@ class SocialLoginTestCase(BaseUserTestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             "access_token": "fake_access_token",
-            "token_type": "bearer"
+            "token_type": "bearer",
         }
-        
+
         # 사용자 정보 응답 mock
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
             "id": "123456789",
             "kakao_account": {
                 "email": "kakao@example.com",
-                "profile": {
-                    "nickname": "kakaouser"
-                }
-            }
+                "profile": {"nickname": "kakaouser"},
+            },
         }
 
         url = reverse("users:kakao-login")
@@ -726,19 +730,17 @@ class SocialLoginTestCase(BaseUserTestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             "access_token": "fake_access_token",
-            "token_type": "bearer"
+            "token_type": "bearer",
         }
-        
+
         # 사용자 정보 응답 mock
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
             "id": "123456789",
             "kakao_account": {
                 "email": "kakao@example.com",
-                "profile": {
-                    "nickname": "kakaouser"
-                }
-            }
+                "profile": {"nickname": "kakaouser"},
+            },
         }
 
         url = reverse("users:kakao-login")
@@ -759,15 +761,15 @@ class SocialLoginTestCase(BaseUserTestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             "access_token": "fake_access_token",
-            "token_type": "bearer"
+            "token_type": "bearer",
         }
-        
+
         # 사용자 정보 응답 mock
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
             "id": "123456789",
             "email": "google@example.com",
-            "name": "googleuser"
+            "name": "googleuser",
         }
 
         url = reverse("users:google-login")
@@ -788,16 +790,16 @@ class SocialLoginTestCase(BaseUserTestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             "access_token": "fake_access_token",
-            "token_type": "bearer"
+            "token_type": "bearer",
         }
-        
+
         # 사용자 정보 응답 mock
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
             "response": {
                 "id": "123456789",
                 "email": "naver@example.com",
-                "name": "naveruser"
+                "name": "naveruser",
             }
         }
 
@@ -814,7 +816,9 @@ class SocialLoginTestCase(BaseUserTestCase):
 class RateLimitTestCase(BaseUserTestCase):
     """Rate Limiting 테스트"""
 
-    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+    @override_settings(
+        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    )
     def test_login_rate_limit(self):
         """로그인 API Rate Limit 테스트"""
         self.create_user()
@@ -824,7 +828,7 @@ class RateLimitTestCase(BaseUserTestCase):
         # Rate limit이 제대로 작동하는지 확인
         # 캐시 초기화
         cache.clear()
-        
+
         # 5회 요청 (제한 내)
         for i in range(5):
             response = self.client.post(url, data, format="json")
@@ -844,16 +848,18 @@ class RateLimitTestCase(BaseUserTestCase):
             [status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_400_BAD_REQUEST],
         )
 
-    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
+    @override_settings(
+        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    )
     @patch("django.core.mail.EmailMultiAlternatives.send")
     def test_email_rate_limit(self, mock_send):
         """이메일 발송 API Rate Limit 테스트"""
         mock_send.return_value = 1
         url = reverse("users:signup-email-send")
-        
+
         # 캐시 초기화
         cache.clear()
-        
+
         # 3회 요청 (제한 내)
         for i in range(3):
             data = {"email": f"test{i+1}@example.com"}
