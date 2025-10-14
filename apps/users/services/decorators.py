@@ -73,11 +73,7 @@ def rate_limit(key_prefix: str, rate: str, method: str = "POST") -> Callable:
 
             # 제한 확인
             if len(attempts) >= limit:
-                remaining_time = int(
-                    (
-                        attempts[0] + timezone.timedelta(seconds=seconds) - now
-                    ).total_seconds()
-                )
+                remaining_time = int((attempts[0] + timezone.timedelta(seconds=seconds) - now).total_seconds())
                 return APIResponse.too_many_requests(
                     message=f"너무 많은 요청입니다. {remaining_time}초 후에 다시 시도해주세요."
                 )

@@ -62,9 +62,7 @@ class BaseSocialLoginView(SocialLoginView):
 
             if token_response.status_code != 200:
                 error_detail = token_response.json() if token_response.text else {}
-                logger.error(
-                    f"{provider} 토큰 교환 실패: {token_response.status_code} - {error_detail}"
-                )
+                logger.error(f"{provider} 토큰 교환 실패: {token_response.status_code} - {error_detail}")
                 return None
 
             return token_response.json()
@@ -91,9 +89,7 @@ class BaseSocialLoginView(SocialLoginView):
             user_data = response.data.get("user", {})
 
             # 통일된 응답 형식으로 새 Response 생성
-            formatted_response = APIResponse.success(
-                message="소셜 로그인에 성공했습니다.", data=user_data
-            )
+            formatted_response = APIResponse.success(message="소셜 로그인에 성공했습니다.", data=user_data)
 
             # 쿠키 설정
             if access_token:
@@ -101,9 +97,7 @@ class BaseSocialLoginView(SocialLoginView):
                     key="access_token",
                     value=access_token,
                     httponly=True,
-                    max_age=settings.SIMPLE_JWT[
-                        "ACCESS_TOKEN_LIFETIME"
-                    ].total_seconds(),
+                    max_age=settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds(),
                     secure=not settings.DEBUG,
                     samesite="Lax",
                 )
@@ -113,9 +107,7 @@ class BaseSocialLoginView(SocialLoginView):
                     key="refresh_token",
                     value=refresh_token,
                     httponly=True,
-                    max_age=settings.SIMPLE_JWT[
-                        "REFRESH_TOKEN_LIFETIME"
-                    ].total_seconds(),
+                    max_age=settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds(),
                     secure=not settings.DEBUG,
                     samesite="Lax",
                 )
@@ -126,13 +118,9 @@ class BaseSocialLoginView(SocialLoginView):
         error_data = response.data if hasattr(response, "data") else {}
 
         if response.status_code == 400:
-            return APIResponse.bad_request(
-                message="소셜 로그인에 실패했습니다.", data=error_data
-            )
+            return APIResponse.bad_request(message="소셜 로그인에 실패했습니다.", data=error_data)
         elif response.status_code == 401:
-            return APIResponse.unauthorized(
-                message="소셜 로그인에 실패했습니다.", data=error_data
-            )
+            return APIResponse.unauthorized(message="소셜 로그인에 실패했습니다.", data=error_data)
         else:
             return APIResponse(
                 message="소셜 로그인에 실패했습니다.",
@@ -160,13 +148,9 @@ class BaseSocialLoginView(SocialLoginView):
             response = super().post(request, *args, **kwargs)
             return self.format_response(response)
         except ValueError as e:
-            return APIResponse.from_exception(
-                e, message="소셜 로그인에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="소셜 로그인에 실패했습니다.", log_error=False)
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="소셜 로그인 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="소셜 로그인 중 오류가 발생했습니다.")
 
 
 class NaverLoginView(BaseSocialLoginView):
@@ -229,9 +213,7 @@ class KakaoLoginView(BaseSocialLoginView):
 
             token_json = self.exchange_code_for_token(code, "KAKAO")
             if not token_json:
-                return APIResponse.bad_request(
-                    message="카카오 인증 코드를 토큰으로 교환하는데 실패했습니다."
-                )
+                return APIResponse.bad_request(message="카카오 인증 코드를 토큰으로 교환하는데 실패했습니다.")
 
             # 액세스 토큰을 request.data에 추가
             request.data["access_token"] = token_json.get("access_token")
@@ -274,9 +256,7 @@ class GoogleLoginView(BaseSocialLoginView):
 
                 token_json = self.exchange_code_for_token(code, "GOOGLE")
                 if not token_json:
-                    return APIResponse.bad_request(
-                        message="구글 인증 코드를 토큰으로 교환하는데 실패했습니다."
-                    )
+                    return APIResponse.bad_request(message="구글 인증 코드를 토큰으로 교환하는데 실패했습니다.")
 
                 # 기존 request의 _request를 사용하여 session 유지
                 new_request = request._request
@@ -303,6 +283,4 @@ class GoogleLoginView(BaseSocialLoginView):
 
         except Exception as e:
             logger.error(f"구글 로그인 처리 중 오류: {e}", exc_info=True)
-            return APIResponse.from_exception(
-                e, message="소셜 로그인 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="소셜 로그인 중 오류가 발생했습니다.")

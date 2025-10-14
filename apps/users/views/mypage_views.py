@@ -53,16 +53,12 @@ class ProfileView(APIView):
         """
         try:
             user = request.user
-            serializer = ProfileSerializer(
-                user, data=request.data, partial=True, context={"request": request}
-            )
+            serializer = ProfileSerializer(user, data=request.data, partial=True, context={"request": request})
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return APIResponse.success(message="프로필 수정 성공", data=serializer.data)
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="프로필 수정에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="프로필 수정에 실패했습니다.", log_error=False)
 
 
 class PasswordChangeView(APIView):
@@ -94,53 +90,35 @@ class PasswordChangeView(APIView):
         """
         try:
             user = request.user
-            serializer = PasswordChangeSerializer(
-                user, data=request.data, context={"request": request}
-            )
+            serializer = PasswordChangeSerializer(user, data=request.data, context={"request": request})
 
             if not serializer.is_valid():
-                return APIResponse.bad_request(
-                    message="비밀번호 변경 실패", data=serializer.errors
-                )
+                return APIResponse.bad_request(message="비밀번호 변경 실패", data=serializer.errors)
 
             # 비밀번호 유효성 검증
             new_password = serializer.validated_data["new_password"]
             import re
 
             if len(new_password) < 8:
-                return APIResponse.bad_request(
-                    message="비밀번호는 8자 이상이어야 합니다."
-                )
+                return APIResponse.bad_request(message="비밀번호는 8자 이상이어야 합니다.")
 
             if len(new_password) > 50:
-                return APIResponse.bad_request(
-                    message="비밀번호는 50자를 초과할 수 없습니다."
-                )
+                return APIResponse.bad_request(message="비밀번호는 50자를 초과할 수 없습니다.")
 
             if " " in new_password:
-                return APIResponse.bad_request(
-                    message="비밀번호에는 공백이 포함될 수 없습니다."
-                )
+                return APIResponse.bad_request(message="비밀번호에는 공백이 포함될 수 없습니다.")
 
             if not re.search(r"[a-zA-Z]", new_password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 영문자가 포함되어야 합니다."
-                )
+                return APIResponse.bad_request(message="비밀번호에는 영문자가 포함되어야 합니다.")
 
             if not re.search(r"[0-9]", new_password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 숫자가 포함되어야 합니다."
-                )
+                return APIResponse.bad_request(message="비밀번호에는 숫자가 포함되어야 합니다.")
 
             if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>/?`~]', new_password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 특수문자가 포함되어야 합니다."
-                )
+                return APIResponse.bad_request(message="비밀번호에는 특수문자가 포함되어야 합니다.")
 
             if re.search(r"(.)\1{2,}", new_password):
-                return APIResponse.bad_request(
-                    message="동일한 문자를 3개 이상 연속으로 사용할 수 없습니다."
-                )
+                return APIResponse.bad_request(message="동일한 문자를 3개 이상 연속으로 사용할 수 없습니다.")
 
             # 동일한 문자(숫자/특수문자) 3번 이상 사용 금지
             from collections import Counter
@@ -148,9 +126,7 @@ class PasswordChangeView(APIView):
             char_count = Counter(new_password)
             for char, count in char_count.items():
                 if count >= 3 and (char.isdigit() or not char.isalpha()):
-                    return APIResponse.bad_request(
-                        message=f"'{char}' 문자는 3번 이상 사용할 수 없습니다."
-                    )
+                    return APIResponse.bad_request(message=f"'{char}' 문자는 3번 이상 사용할 수 없습니다.")
 
             # Serializer를 통해 비밀번호 변경
             serializer.save()
@@ -159,9 +135,7 @@ class PasswordChangeView(APIView):
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="비밀번호 변경에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="비밀번호 변경에 실패했습니다.", log_error=False)
 
 
 class AccountDeleteView(APIView):
@@ -203,6 +177,4 @@ class AccountDeleteView(APIView):
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="회원 탈퇴 처리 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="회원 탈퇴 처리 중 오류가 발생했습니다.")

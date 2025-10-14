@@ -88,17 +88,13 @@ class VerifySignUpCodeView(APIView):
             return APIResponse.bad_request(message="이메일과 인증번호는 필수입니다.")
 
         # 인증번호 확인
-        success, error_message = EmailVerificationService.verify_code(
-            email=email, code=code, purpose="signup"
-        )
+        success, error_message = EmailVerificationService.verify_code(email=email, code=code, purpose="signup")
 
         if success:
             # signup_email_verified 키 설정 (기존 코드와의 호환성 유지)
             cache.set(f"signup_email_verified:{email}", True, timeout=300)
 
-            return APIResponse.success(
-                message="이메일 인증이 완료되었습니다. 회원가입을 계속해주세요."
-            )
+            return APIResponse.success(message="이메일 인증이 완료되었습니다. 회원가입을 계속해주세요.")
         else:
             return APIResponse.bad_request(message=error_message)
 
@@ -148,9 +144,7 @@ class PasswordResetEmailCodeView(APIView):
             logger.info(f"Password reset requested for non-existent email: {email}")
 
         # 보안을 위해 이메일 존재 여부와 관계없이 동일한 응답
-        return APIResponse.success(
-            message="입력하신 이메일로 인증번호를 발송했습니다. 이메일을 확인해주세요."
-        )
+        return APIResponse.success(message="입력하신 이메일로 인증번호를 발송했습니다. 이메일을 확인해주세요.")
 
 
 class VerifyPasswordResetCodeView(APIView):
@@ -182,16 +176,12 @@ class VerifyPasswordResetCodeView(APIView):
             return APIResponse.bad_request(message="이메일과 인증번호를 입력해주세요.")
 
         # 인증번호 확인
-        success, error_message = EmailVerificationService.verify_code(
-            email=email, code=code, purpose="password_reset"
-        )
+        success, error_message = EmailVerificationService.verify_code(email=email, code=code, purpose="password_reset")
 
         if success:
             # password_reset_verified 키 설정 (기존 코드와의 호환성 유지)
             cache.set(f"password_reset_verified:{email}", True, timeout=300)
 
-            return APIResponse.success(
-                message="이메일 인증이 완료되었습니다. 새 비밀번호를 설정해주세요."
-            )
+            return APIResponse.success(message="이메일 인증이 완료되었습니다. 새 비밀번호를 설정해주세요.")
         else:
             return APIResponse.bad_request(message=error_message)

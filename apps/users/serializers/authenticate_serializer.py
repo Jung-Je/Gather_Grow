@@ -80,9 +80,7 @@ class UserLoginSerializer(serializers.Serializer):
                 else:
                     raise serializers.ValidationError("User account is disabled.")
             else:
-                raise serializers.ValidationError(
-                    "Unable to login with provided credentials."
-                )
+                raise serializers.ValidationError("Unable to login with provided credentials.")
         else:
             raise serializers.ValidationError("Email and password are required.")
 
@@ -98,9 +96,7 @@ class SetNewPasswordSerializer(serializers.Serializer):
     confirm_password = serializers.CharField(min_length=8, write_only=True)
     token = serializers.CharField(write_only=True)
     uidb64 = serializers.CharField(write_only=True, required=False)
-    uidb_64 = serializers.CharField(
-        write_only=True, required=False
-    )  # Handle camel case conversion
+    uidb_64 = serializers.CharField(write_only=True, required=False)  # Handle camel case conversion
 
     class Meta:
         fields = ["password", "confirm_password", "token", "uidb64"]

@@ -35,9 +35,7 @@ class AuthenticationService:
         # 회원가입용 이메일 인증 확인
         email = data.get("email")
         if not cache.get(f"signup_email_verified:{email}"):
-            raise ValueError(
-                "이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요."
-            )
+            raise ValueError("이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요.")
 
         serializer = UserSignUpSerializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -77,9 +75,7 @@ class AuthenticationService:
                     time_passed = timezone.now() - user.last_failed_login
                     if time_passed.total_seconds() < 1800:  # 30분
                         remaining_time = int(1800 - time_passed.total_seconds())
-                        raise ValueError(
-                            f"로그인 시도 횟수를 초과했습니다. {remaining_time}초 후에 다시 시도해주세요."
-                        )
+                        raise ValueError(f"로그인 시도 횟수를 초과했습니다. {remaining_time}초 후에 다시 시도해주세요.")
                     else:
                         # 30분 지나면 초기화
                         user.failed_login_attempts = 0
@@ -202,9 +198,7 @@ class AuthenticationService:
         """
         # 이메일 인증 확인
         if not cache.get(f"password_reset_verified:{email}"):
-            raise ValueError(
-                "이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요."
-            )
+            raise ValueError("이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요.")
 
         try:
             user = User.objects.get(email=email)
@@ -292,9 +286,7 @@ class AuthenticationService:
         user.is_deleted = True
         user.is_active = False  # 로그인 차단
         user.deleted_at = timezone.now()
-        user.deletion_scheduled_at = timezone.now() + timezone.timedelta(
-            days=90
-        )  # 90일 후 완전 삭제
+        user.deletion_scheduled_at = timezone.now() + timezone.timedelta(days=90)  # 90일 후 완전 삭제
 
         # 개인정보 마스킹 (복구 불가능하도록)
         user.email = f"deleted_{user.id}@deleted.com"
@@ -316,9 +308,7 @@ class AuthenticationService:
 
         이 메서드는 주기적으로 실행되어야 함 (예: 매일 자정 크론잡)
         """
-        expired_users = User.objects.filter(
-            is_deleted=True, deletion_scheduled_at__lte=timezone.now()
-        )
+        expired_users = User.objects.filter(is_deleted=True, deletion_scheduled_at__lte=timezone.now())
 
         count = expired_users.count()
         for user in expired_users:

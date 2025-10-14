@@ -42,17 +42,11 @@ class UserSignUpView(APIView):
         """
         try:
             user_data = AuthenticationService.signup(request.data)
-            return APIResponse.created(
-                message="회원가입이 완료되었습니다.", data=user_data
-            )
+            return APIResponse.created(message="회원가입이 완료되었습니다.", data=user_data)
         except ValueError as e:
-            return APIResponse.from_exception(
-                e, message="회원가입에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="회원가입에 실패했습니다.", log_error=False)
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="회원가입 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="회원가입 중 오류가 발생했습니다.")
 
 
 class UserLoginView(APIView):
@@ -80,13 +74,9 @@ class UserLoginView(APIView):
                 - 500: 서버 오류
         """
         try:
-            user_data, access_token, refresh_token = AuthenticationService.login(
-                request.data
-            )
+            user_data, access_token, refresh_token = AuthenticationService.login(request.data)
 
-            response = APIResponse.success(
-                message="로그인에 성공했습니다.", data=user_data
-            )
+            response = APIResponse.success(message="로그인에 성공했습니다.", data=user_data)
 
             # 쿠키 설정
             response.set_cookie(
@@ -108,13 +98,9 @@ class UserLoginView(APIView):
 
             return response
         except ValueError as e:
-            return APIResponse.from_exception(
-                e, message="로그인에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="로그인에 실패했습니다.", log_error=False)
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="로그인 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="로그인 중 오류가 발생했습니다.")
 
 
 class UserRefreshTokenView(APIView):
@@ -143,9 +129,7 @@ class UserRefreshTokenView(APIView):
             if not refresh_token:
                 return APIResponse.bad_request(message="리프레시 토큰이 필요합니다.")
 
-            access_token, new_refresh_token = AuthenticationService.refresh_token(
-                refresh_token
-            )
+            access_token, new_refresh_token = AuthenticationService.refresh_token(refresh_token)
 
             response = APIResponse.success(message="토큰이 갱신되었습니다.")
 
@@ -169,13 +153,9 @@ class UserRefreshTokenView(APIView):
 
             return response
         except ValueError as e:
-            return APIResponse.from_exception(
-                e, message="토큰 갱신에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="토큰 갱신에 실패했습니다.", log_error=False)
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="토큰 갱신 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="토큰 갱신 중 오류가 발생했습니다.")
 
 
 class UserLogoutView(APIView):
@@ -214,13 +194,9 @@ class UserLogoutView(APIView):
 
             return response
         except ValueError as e:
-            return APIResponse.from_exception(
-                e, message="로그아웃에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="로그아웃에 실패했습니다.", log_error=False)
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="로그아웃 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="로그아웃 중 오류가 발생했습니다.")
 
 
 class PasswordResetView(APIView):
@@ -255,9 +231,7 @@ class PasswordResetView(APIView):
             confirm_password = request.data.get("confirm_password")
 
             if not email or not password or not confirm_password:
-                return APIResponse.bad_request(
-                    message="이메일, 비밀번호, 비밀번호 확인을 모두 입력해주세요."
-                )
+                return APIResponse.bad_request(message="이메일, 비밀번호, 비밀번호 확인을 모두 입력해주세요.")
 
             if password != confirm_password:
                 return APIResponse.bad_request(message="비밀번호가 일치하지 않습니다.")
@@ -273,6 +247,4 @@ class PasswordResetView(APIView):
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="비밀번호 변경 중 오류가 발생했습니다."
-            )
+            return APIResponse.from_exception(e, message="비밀번호 변경 중 오류가 발생했습니다.")

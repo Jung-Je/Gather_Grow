@@ -33,9 +33,7 @@ class SensitiveDataFilter(logging.Filter):
             )
 
             # 전화번호 마스킹 (예: 010-1234-5678 -> 010-****-5678)
-            record.msg = re.sub(
-                r"\b(\d{2,3})-?\d{3,4}-?(\d{4})\b", r"\1-****-\2", str(record.msg)
-            )
+            record.msg = re.sub(r"\b(\d{2,3})-?\d{3,4}-?(\d{4})\b", r"\1-****-\2", str(record.msg))
 
             # JWT 토큰 마스킹 (Bearer 토큰)
             record.msg = re.sub(
@@ -45,8 +43,6 @@ class SensitiveDataFilter(logging.Filter):
             )
 
             # 일반 토큰 마스킹 (20자 이상의 영숫자 문자열)
-            record.msg = re.sub(
-                r"\b[A-Za-z0-9]{20,}\b", "***MASKED_TOKEN***", str(record.msg)
-            )
+            record.msg = re.sub(r"\b[A-Za-z0-9]{20,}\b", "***MASKED_TOKEN***", str(record.msg))
 
         return True

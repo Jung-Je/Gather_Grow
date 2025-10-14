@@ -89,9 +89,7 @@ class EmailVerificationService:
 
             # 재전송 제한 플래그 설정
             resend_flag_key = f"{purpose}_resend_flag:{email}"
-            cache.set(
-                resend_flag_key, True, timeout=EmailVerificationService.RESEND_TIMEOUT
-            )
+            cache.set(resend_flag_key, True, timeout=EmailVerificationService.RESEND_TIMEOUT)
 
             logger.info(f"Verification code sent to {email} for {purpose}")
             return True, None

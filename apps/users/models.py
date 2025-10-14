@@ -113,12 +113,8 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="user")
     joined_type = models.CharField(max_length=20, choices=JOINED_TYPE_CHOICES)
     profile = models.TextField(blank=True, null=True)
-    profile_image = models.ImageField(
-        upload_to="profile_images/", blank=True, null=True
-    )
-    education_level = models.CharField(
-        max_length=20, choices=EDUCATION_LEVEL_CHOICES, blank=True, null=True
-    )
+    profile_image = models.ImageField(upload_to="profile_images/", blank=True, null=True)
+    education_level = models.CharField(max_length=20, choices=EDUCATION_LEVEL_CHOICES, blank=True, null=True)
     location = models.CharField(max_length=100, blank=True, null=True)
 
     # 보안 관련 필드
