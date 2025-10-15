@@ -286,9 +286,7 @@ class PasswordResetTestCase(BaseUserTestCase):
 
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            response.data["message"], "비밀번호가 성공적으로 변경되었습니다."
-        )
+        self.assertEqual(response.data["message"], "비밀번호가 성공적으로 변경되었습니다.")
 
         # 새 비밀번호로 로그인 확인
         user.refresh_from_db()
@@ -416,9 +414,7 @@ class PasswordChangeTestCase(BaseUserTestCase):
 
         response = self.client.patch(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(
-            response.data["message"], "비밀번호가 성공적으로 변경되었습니다."
-        )
+        self.assertEqual(response.data["message"], "비밀번호가 성공적으로 변경되었습니다.")
 
         user.refresh_from_db()
         self.assertTrue(user.check_password("NewPass456!@#"))
@@ -534,9 +530,7 @@ class AccountDeletionTestCase(BaseUserTestCase):
 
         response = self.client.delete(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn(
-            "90일 후 모든 데이터가 완전히 삭제됩니다", response.data["message"]
-        )
+        self.assertIn("90일 후 모든 데이터가 완전히 삭제됩니다", response.data["message"])
 
         user.refresh_from_db()
         self.assertTrue(user.is_deleted)
@@ -628,8 +622,8 @@ class EmailVerificationTestCase(BaseUserTestCase):
         email = "newuser@example.com"
         code = "123456"
 
-        # 캐시에 인증 코드 저장
-        cache.set(f"email_code:signup:{email}", code, timeout=600)
+        # 캐시에 인증 코드 저장 (실제 코드와 동일한 키 형식 사용)
+        cache.set(f"signup_verify_code:{email}", code, timeout=600)
 
         url = reverse("users:signup-email-verify")
         data = {"email": email, "code": code}
@@ -639,12 +633,12 @@ class EmailVerificationTestCase(BaseUserTestCase):
         self.assertIn("이메일 인증이 완료되었습니다", response.data["message"])
 
         # 인증 완료 캐시 확인
-        self.assertTrue(cache.get(f"signup_email_verified:{email}"))
+        self.assertTrue(cache.get(f"signup_verified:{email}"))
 
     def test_verify_signup_code_wrong(self):
         """잘못된 인증 코드"""
         email = "newuser@example.com"
-        cache.set(f"email_code:signup:{email}", "123456", timeout=600)
+        cache.set(f"signup_verify_code:{email}", "123456", timeout=600)
 
         url = reverse("users:signup-email-verify")
         data = {"email": email, "code": "999999"}
@@ -671,7 +665,7 @@ class EmailVerificationTestCase(BaseUserTestCase):
         user = self.create_user()
         code = "123456"
 
-        cache.set(f"email_code:password_reset:{self.test_email}", code, timeout=600)
+        cache.set(f"password_reset_verify_code:{self.test_email}", code, timeout=600)
 
         url = reverse("users:password-reset-email-verify")
         data = {"email": self.test_email, "code": code}
@@ -722,9 +716,7 @@ class SocialLoginTestCase(BaseUserTestCase):
     def test_kakao_login_existing_user(self, mock_get, mock_post):
         """카카오 기존 사용자 로그인"""
         # 기존 사용자 생성
-        existing_user = self.create_user(
-            email="kakao@example.com", username="existinguser", joined_type="kakao"
-        )
+        existing_user = self.create_user(email="kakao@example.com", username="existinguser", joined_type="kakao")
 
         # 토큰 교환 응답 mock
         mock_post.return_value.status_code = 200
@@ -816,9 +808,7 @@ class SocialLoginTestCase(BaseUserTestCase):
 class RateLimitTestCase(BaseUserTestCase):
     """Rate Limiting 테스트"""
 
-    @override_settings(
-        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    )
+    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     def test_login_rate_limit(self):
         """로그인 API Rate Limit 테스트"""
         self.create_user()
@@ -848,9 +838,7 @@ class RateLimitTestCase(BaseUserTestCase):
             [status.HTTP_429_TOO_MANY_REQUESTS, status.HTTP_400_BAD_REQUEST],
         )
 
-    @override_settings(
-        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
-    )
+    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     @patch("django.core.mail.EmailMultiAlternatives.send")
     def test_email_rate_limit(self, mock_send):
         """이메일 발송 API Rate Limit 테스트"""
