@@ -124,7 +124,7 @@ class EmailVerificationService:
         cache.delete(code_key)
 
         # 인증 성공 표시 (5분간 유효)
-        verified_key = f"{purpose}_verified:{email}"
+        verified_key = f"{purpose}_email_verified:{email}"
         cache.set(verified_key, True, timeout=EmailVerificationService.CACHE_TIMEOUT)
 
         return True, None
@@ -140,7 +140,7 @@ class EmailVerificationService:
         Returns:
             인증 완료 여부
         """
-        verified_key = f"{purpose}_verified:{email}"
+        verified_key = f"{purpose}_email_verified:{email}"
         return bool(cache.get(verified_key))
 
     @staticmethod
@@ -151,5 +151,5 @@ class EmailVerificationService:
             email: 이메일 주소
             purpose: 용도 ('signup' 또는 'password_reset')
         """
-        verified_key = f"{purpose}_verified:{email}"
+        verified_key = f"{purpose}_email_verified:{email}"
         cache.delete(verified_key)
