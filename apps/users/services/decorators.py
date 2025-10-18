@@ -2,13 +2,14 @@ from functools import wraps
 from typing import Callable
 
 from django.core.cache import cache
-from django.utils import timezone
 
 from apps.common.responses import APIResponse
 
 
 def rate_limit(key_prefix: str, rate: str, method: str = "POST") -> Callable:
     """Rate limiting 데코레이터
+
+    슬라이딩 윈도우 카운터 방식으로 효율적이고 안정적인 속도 제한 구현
 
     Args:
         key_prefix: 캐시 키 prefix (예: 'login', 'email_send')
@@ -55,34 +56,42 @@ def rate_limit(key_prefix: str, rate: str, method: str = "POST") -> Callable:
             else:
                 x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
                 if x_forwarded_for:
-                    ip = x_forwarded_for.split(",")[0]
+                    ip = x_forwarded_for.split(",")[0].strip()
                 else:
                     ip = request.META.get("REMOTE_ADDR", "0.0.0.0")
                 identifier = f"ip_{ip}"
 
-            # 캐시 키 생성
+            # 캐시 키 생성 (카운터 기반)
             cache_key = f"rate_limit:{key_prefix}:{identifier}"
+            reset_key = f"rate_limit_reset:{key_prefix}:{identifier}"
 
-            # 현재 요청 횟수 확인
-            attempts = cache.get(cache_key, [])
-            now = timezone.now()
+            # 현재 요청 횟수 확인 (정수 카운터 사용)
+            try:
+                current_count = cache.get(cache_key, 0)
+                reset_time = cache.get(reset_key)
 
-            # 시간이 지난 요청 제거
-            cutoff_time = now - timezone.timedelta(seconds=seconds)
-            attempts = [t for t in attempts if t > cutoff_time]
+                # 첫 요청이거나 윈도우가 만료된 경우
+                if current_count == 0 or reset_time is None:
+                    cache.set(cache_key, 1, timeout=seconds)
+                    cache.set(reset_key, seconds, timeout=seconds)
+                    return func(self, request, *args, **kwargs)
 
-            # 제한 확인
-            if len(attempts) >= limit:
-                remaining_time = int((attempts[0] + timezone.timedelta(seconds=seconds) - now).total_seconds())
-                return APIResponse.too_many_requests(
-                    message=f"너무 많은 요청입니다. {remaining_time}초 후에 다시 시도해주세요."
-                )
+                # 제한 확인
+                if current_count >= limit:
+                    return APIResponse.too_many_requests(
+                        message=f"너무 많은 요청입니다. {reset_time}초 후에 다시 시도해주세요."
+                    )
 
-            # 새 요청 추가
-            attempts.append(now)
-            cache.set(cache_key, attempts, seconds)
+                # 요청 카운트 증가 (atomic operation)
+                cache.incr(cache_key)
 
-            return func(self, request, *args, **kwargs)
+                return func(self, request, *args, **kwargs)
+
+            except ValueError:
+                # incr 실패시 (키가 없거나 정수가 아닌 경우) 초기화
+                cache.set(cache_key, 1, timeout=seconds)
+                cache.set(reset_key, seconds, timeout=seconds)
+                return func(self, request, *args, **kwargs)
 
         return wrapper
 
