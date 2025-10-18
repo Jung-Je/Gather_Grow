@@ -31,8 +31,36 @@ EDUCATION_LEVEL_CHOICES = [
 ]
 
 
+class UserQuerySet(models.QuerySet):
+    """소프트 삭제를 지원하는 커스텀 쿼리셋"""
+
+    def active(self):
+        """탈퇴하지 않은 활성 사용자만 조회"""
+        return self.filter(is_deleted=False)
+
+    def deleted(self):
+        """탈퇴한 사용자만 조회"""
+        return self.filter(is_deleted=True)
+
+    def with_deleted(self):
+        """탈퇴한 사용자 포함 전체 조회"""
+        return self
+
+
 class UserManager(BaseUserManager):
     """사용자 생성 및 관리를 위한 커스텀 매니저."""
+
+    def get_queryset(self):
+        """기본 쿼리셋은 탈퇴하지 않은 사용자만 반환"""
+        return UserQuerySet(self.model, using=self._db).active()
+
+    def with_deleted(self):
+        """탈퇴한 사용자 포함 전체 조회"""
+        return UserQuerySet(self.model, using=self._db).with_deleted()
+
+    def deleted_only(self):
+        """탈퇴한 사용자만 조회"""
+        return UserQuerySet(self.model, using=self._db).deleted()
 
     def create_user(self, email, username, password=None, **extra_fields):
         """일반 사용자를 생성합니다.
