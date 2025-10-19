@@ -23,6 +23,7 @@ class UserSignUpSerializer(serializers.ModelSerializer):
             "username",
             "joined_type",
         ]
+        read_only_fields = ["joined_type"]
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
