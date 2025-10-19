@@ -633,7 +633,7 @@ class EmailVerificationTestCase(BaseUserTestCase):
         self.assertIn("이메일 인증이 완료되었습니다", response.data["message"])
 
         # 인증 완료 캐시 확인
-        self.assertTrue(cache.get(f"signup_verified:{email}"))
+        self.assertTrue(cache.get(f"signup_email_verified:{email}"))
 
     def test_verify_signup_code_wrong(self):
         """잘못된 인증 코드"""
