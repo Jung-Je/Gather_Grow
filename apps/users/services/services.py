@@ -37,6 +37,10 @@ class AuthenticationService:
         if not cache.get(f"signup_email_verified:{email}"):
             raise ValueError("이메일 인증이 필요합니다. 먼저 이메일 인증을 완료해주세요.")
 
+        # joined_type을 'normal'로 자동 설정 (일반 회원가입)
+        data = data.copy()  # 원본 데이터 보존
+        data["joined_type"] = "normal"
+
         serializer = UserSignUpSerializer(data=data)
         serializer.is_valid(raise_exception=True)
 
