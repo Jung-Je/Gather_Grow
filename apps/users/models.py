@@ -82,6 +82,9 @@ class UserManager(BaseUserManager):
         if not username:
             raise ValueError("사용자 이름은 필수입니다")
 
+        # joined_type 기본값 설정
+        extra_fields.setdefault("joined_type", "normal")
+
         email = self.normalize_email(email)
         user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
