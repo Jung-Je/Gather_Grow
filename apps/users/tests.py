@@ -60,7 +60,6 @@ class SignUpTestCase(BaseUserTestCase):
             "password": self.test_password,
             "confirm_password": self.test_password,
             "username": self.test_username,
-            "joined_type": "normal",
         }
 
         response = self.client.post(url, data, format="json")
@@ -81,7 +80,6 @@ class SignUpTestCase(BaseUserTestCase):
             "password": self.test_password,
             "confirm_password": self.test_password,
             "username": self.test_username,
-            "joined_type": "normal",
         }
 
         response = self.client.post(url, data, format="json")
@@ -102,7 +100,6 @@ class SignUpTestCase(BaseUserTestCase):
             "password": "NewPass123!@#",
             "confirm_password": "NewPass123!@#",
             "username": "newuser",
-            "joined_type": "normal",
         }
 
         response = self.client.post(url, data, format="json")
@@ -118,7 +115,6 @@ class SignUpTestCase(BaseUserTestCase):
             "password": "weak",  # 너무 짧은 비밀번호
             "confirm_password": "weak",
             "username": self.test_username,
-            "joined_type": "normal",
         }
 
         response = self.client.post(url, data, format="json")
