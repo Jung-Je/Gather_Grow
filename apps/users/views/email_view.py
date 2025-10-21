@@ -42,8 +42,7 @@ class SignUpEmailCodeView(APIView):
         if not email:
             return APIResponse.bad_request(message="이메일은 필수입니다.")
 
-        # 이미 가입된 이메일인지 확인
-        if User.objects.filter(email=email).exists():
+        if User.objects.with_deleted().filter(email=email).exists():
             return APIResponse.bad_request(message="이미 사용 중인 이메일입니다.")
 
         # 인증번호 발송
