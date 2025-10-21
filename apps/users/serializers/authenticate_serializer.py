@@ -26,8 +26,8 @@ class UserSignUpSerializer(serializers.ModelSerializer):
         read_only_fields = ["joined_type"]
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("이미 존재하는 이메일입니다.")
+        if User.objects.with_deleted().filter(email=value).exists():
+            raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
         return value
 
     def validate_password(self, value):
