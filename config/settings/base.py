@@ -58,6 +58,9 @@ PACKAGE = [
     "allauth",
     "allauth.account",
     "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.socialaccount.providers.naver",
+    "allauth.socialaccount.providers.kakao",
     # Django Packages
     "corsheaders",
     "channels",
@@ -92,7 +95,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [BASE_DIR / "apps" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -172,6 +175,28 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
+# REST Framework 설정
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.users.authentication.CustomCookieAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+}
+
+# Spectacular 설정 (API 문서화)
+SPECTACULAR_SETTINGS = {
+    "TITLE": "GatherGrow API",
+    "DESCRIPTION": "GatherGrow 프로젝트 API 문서",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
+
 # Channels (WebSocket) 설정
 CHANNEL_LAYERS = {
     "default": {
@@ -182,10 +207,136 @@ CHANNEL_LAYERS = {
     },
 }
 
-# REST Framework JWT Authentication
+
+# Social Auth Configuration - 환경 변수로부터 설정
+SOCIAL_AUTH_CONFIG = {
+    "GOOGLE": {
+        "CLIENT_ID": os.environ.get("SOCIAL_AUTH_GOOGLE_CLIENT_ID"),
+        "SECRET_KEY": os.environ.get("SOCIAL_AUTH_GOOGLE_SECRET_KEY"),
+        "REDIRECT_URI": os.environ.get("SOCIAL_AUTH_GOOGLE_REDIRECT_URI"),
+    },
+    "NAVER": {
+        "CLIENT_ID": os.environ.get("SOCIAL_AUTH_NAVER_CLIENT_ID"),
+        "SECRET_KEY": os.environ.get("SOCIAL_AUTH_NAVER_SECRET_KEY"),
+        "REDIRECT_URI": os.environ.get("SOCIAL_AUTH_NAVER_REDIRECT_URI"),
+    },
+    "KAKAO": {
+        "CLIENT_ID": os.environ.get("SOCIAL_AUTH_KAKAO_CLIENT_ID"),
+        "SECRET_KEY": os.environ.get("SOCIAL_AUTH_KAKAO_SECRET_KEY"),
+        "REDIRECT_URI": os.environ.get("SOCIAL_AUTH_KAKAO_REDIRECT_URI"),
+    },
+}
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "APP": {
+            "client_id": SOCIAL_AUTH_CONFIG["GOOGLE"]["CLIENT_ID"],
+            "secret": SOCIAL_AUTH_CONFIG["GOOGLE"]["SECRET_KEY"],
+            "key": SOCIAL_AUTH_CONFIG["GOOGLE"]["CLIENT_ID"],
+            "redirect_uri": SOCIAL_AUTH_CONFIG["GOOGLE"]["REDIRECT_URI"],
+        },
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+        "AUTH_PARAMS": {
+            "access_type": "online",
+        },
+        "OAUTH_PKCE_ENABLED": True,
+    },
+    "naver": {
+        "APP": {
+            "client_id": SOCIAL_AUTH_CONFIG["NAVER"]["CLIENT_ID"],
+            "secret": SOCIAL_AUTH_CONFIG["NAVER"]["SECRET_KEY"],
+            "key": SOCIAL_AUTH_CONFIG["NAVER"]["CLIENT_ID"],
+            "redirect_uri": SOCIAL_AUTH_CONFIG["NAVER"]["REDIRECT_URI"],
+        }
+    },
+    "kakao": {
+        "ADAPTER": "apps.users.adapters.kakao_adapter.CustomKakaoOAuth2Adapter",
+        "APP": {
+            "client_id": SOCIAL_AUTH_CONFIG["KAKAO"]["CLIENT_ID"],
+            "secret": SOCIAL_AUTH_CONFIG["KAKAO"]["SECRET_KEY"],
+            "key": SOCIAL_AUTH_CONFIG["KAKAO"]["CLIENT_ID"],
+            "redirect_uri": SOCIAL_AUTH_CONFIG["KAKAO"]["REDIRECT_URI"],
+        },
+        "SCOPE": [
+            "profile_nickname",
+            "account_email",
+        ],
+    },
+}
+
+AUTH_USER_MODEL = "users.User"
+
+# Simple JWT settings
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": False,
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "VERIFYING_KEY": None,
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "JTI_CLAIM": "jti",
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+}
+
+# allauth와 연동 설정
+SITE_ID = 1
+
+# allauth 설정 (최신 방식)
+REST_USE_JWT = True
+JWT_AUTH_COOKIE = "access_token"
+JWT_AUTH_REFRESH_COOKIE = "refresh_token"
+JWT_AUTH_COOKIE_SECURE = False
+JWT_AUTH_COOKIE_HTTPONLY = True
+JWT_AUTH_COOKIE_SAMESITE = "Lax"
+
+ACCOUNT_LOGIN_METHODS = ["email"]
+ACCOUNT_AUTHENTICATION_METHODS = "email"
+
+# allauth 소셜 계정 설정
+SOCIALACCOUNT_AUTO_SIGNUP = True  # 자동으로 가입 처리
+SOCIALACCOUNT_EMAIL_REQUIRED = True  # 이메일 필수
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"  # 이메일 인증 안함
+SOCIALACCOUNT_QUERY_EMAIL = True  # 이메일 정보 가져오기
+
+# 커스텀 소셜 계정 어댑터 설정 (필요시 추가)
+
 REST_AUTH = {
     "USE_JWT": True,
     "JWT_AUTH_COOKIE": "access_token",
     "JWT_AUTH_REFRESH_COOKIE": "refresh_token",
+    "JWT_AUTH_COOKIE_SECURE": False,
+    # 토큰을 본문에 포함시키지 않음
     "JWT_AUTH_COOKIE_HTTPONLY": True,
+    "JWT_AUTH_COOKIE_SAMESITE": "Lax",
+    # 소셜 로그인 시 회원가입 리다이렉트 비활성화
+    "REGISTER_SERIALIZER": "dj_rest_auth.registration.serializers.RegisterSerializer",
+    "SOCIAL_LOGIN_SERIALIZER": "dj_rest_auth.registration.serializers.SocialLoginSerializer",
 }
+
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.naver.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+SERVER_EMAIL = EMAIL_HOST_USER
