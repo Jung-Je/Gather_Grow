@@ -5,6 +5,8 @@ from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 
+from apps.users.services.validators import PasswordValidator
+
 User = get_user_model()
 
 
@@ -21,10 +23,11 @@ class UserSignUpSerializer(serializers.ModelSerializer):
             "username",
             "joined_type",
         ]
+        read_only_fields = ["joined_type"]
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("이미 존재하는 이메일입니다.")
+        if User.objects.with_deleted().filter(email=value).exists():
+            raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
         return value
 
     def validate_password(self, value):
@@ -37,51 +40,9 @@ class UserSignUpSerializer(serializers.ModelSerializer):
         - 연속된 같은 문자 3개 이상 금지
         - 공백 포함 금지
         """
-        import re
-
-        # 1. 최소 길이 검증 (8자 이상)
-        if len(value) < 8:
-            raise serializers.ValidationError("비밀번호는 8자 이상이어야 합니다.")
-
-        # 2. 최대 길이 검증 (50자 제한)
-        if len(value) > 50:
-            raise serializers.ValidationError("비밀번호는 50자를 초과할 수 없습니다.")
-
-        # 3. 공백 검증
-        if " " in value:
-            raise serializers.ValidationError("비밀번호에는 공백이 포함될 수 없습니다.")
-
-        # 4. 영문자 포함 검증 (대/소문자 상관없음)
-        if not re.search(r"[a-zA-Z]", value):
-            raise serializers.ValidationError(
-                "비밀번호에는 영문자가 포함되어야 합니다."
-            )
-
-        # 5. 숫자 포함 검증
-        if not re.search(r"[0-9]", value):
-            raise serializers.ValidationError("비밀번호에는 숫자가 포함되어야 합니다.")
-
-        # 6. 특수문자 포함 검증
-        if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?`~]', value):
-            raise serializers.ValidationError(
-                "비밀번호에는 특수문자가 포함되어야 합니다."
-            )
-
-        # 7. 연속된 같은 문자 3개 이상 금지
-        if re.search(r"(.)\1{2,}", value):
-            raise serializers.ValidationError(
-                "동일한 문자를 3개 이상 연속으로 사용할 수 없습니다."
-            )
-
-        # 8. 동일한 문자(숫자/특수문자) 3번 이상 사용 금지
-        from collections import Counter
-
-        char_count = Counter(value)
-        for char, count in char_count.items():
-            if count >= 3 and (char.isdigit() or not char.isalpha()):
-                raise serializers.ValidationError(
-                    f"'{char}' 문자는 3번 이상 사용할 수 없습니다."
-                )
+        error_message = PasswordValidator.validate(value)
+        if error_message:
+            raise serializers.ValidationError(error_message)
 
         return value
 
@@ -120,9 +81,7 @@ class UserLoginSerializer(serializers.Serializer):
                 else:
                     raise serializers.ValidationError("User account is disabled.")
             else:
-                raise serializers.ValidationError(
-                    "Unable to login with provided credentials."
-                )
+                raise serializers.ValidationError("Unable to login with provided credentials.")
         else:
             raise serializers.ValidationError("Email and password are required.")
 
@@ -138,9 +97,7 @@ class SetNewPasswordSerializer(serializers.Serializer):
     confirm_password = serializers.CharField(min_length=8, write_only=True)
     token = serializers.CharField(write_only=True)
     uidb64 = serializers.CharField(write_only=True, required=False)
-    uidb_64 = serializers.CharField(
-        write_only=True, required=False
-    )  # Handle camel case conversion
+    uidb_64 = serializers.CharField(write_only=True, required=False)  # Handle camel case conversion
 
     class Meta:
         fields = ["password", "confirm_password", "token", "uidb64"]

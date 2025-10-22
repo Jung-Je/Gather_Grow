@@ -39,9 +39,7 @@ class CustomCookieAuthentication(JWTAuthentication):
 
         except Exception as e:
             # 예상치 못한 오류
-            logger.error(
-                f"Unexpected error during authentication: {str(e)}", exc_info=True
-            )
+            logger.error(f"Unexpected error during authentication: {str(e)}", exc_info=True)
             return None
 
 

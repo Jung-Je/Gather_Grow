@@ -22,13 +22,24 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
-            "username",
             "email",
             "role",
             "joined_type",
             "created_at",
             "updated_at",
         ]
+
+    def validate_username(self, value):
+        """Username 유효성 검증"""
+        # 공백 체크
+        if not value or not value.strip():
+            raise serializers.ValidationError("사용자 이름은 필수입니다.")
+
+        # 길이 체크
+        if len(value) > 20:
+            raise serializers.ValidationError("사용자 이름은 20자 이하여야 합니다.")
+
+        return value.strip()
 
 
 class PasswordChangeSerializer(serializers.Serializer):
@@ -44,7 +55,7 @@ class PasswordChangeSerializer(serializers.Serializer):
 
     def validate(self, data):
         """새 비밀번호와 확인 비밀번호 일치 검증"""
-        if data.get('new_password') != data.get('confirm_new_password'):
+        if data.get("new_password") != data.get("confirm_new_password"):
             raise serializers.ValidationError("새 비밀번호가 일치하지 않습니다.")
         return data
 

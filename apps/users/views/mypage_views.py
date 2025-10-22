@@ -4,8 +4,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
-from apps.users.serializers.mypage_serializer import ProfileSerializer, PasswordChangeSerializer
+from apps.users.serializers.mypage_serializer import (
+    PasswordChangeSerializer,
+    ProfileSerializer,
+)
 from apps.users.services.services import AuthenticationService
+from apps.users.services.validators import PasswordValidator
 
 
 class ProfileView(APIView):
@@ -50,16 +54,12 @@ class ProfileView(APIView):
         """
         try:
             user = request.user
-            serializer = ProfileSerializer(
-                user, data=request.data, partial=True, context={"request": request}
-            )
+            serializer = ProfileSerializer(user, data=request.data, partial=True, context={"request": request})
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return APIResponse.success(message="프로필 수정 성공", data=serializer.data)
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="프로필 수정에 실패했습니다.", log_error=False
-            )
+            return APIResponse.from_exception(e, message="프로필 수정에 실패했습니다.", log_error=False)
 
 
 class PasswordChangeView(APIView):
@@ -91,64 +91,16 @@ class PasswordChangeView(APIView):
         """
         try:
             user = request.user
-            serializer = PasswordChangeSerializer(
-                user, data=request.data, context={"request": request}
-            )
-            
+            serializer = PasswordChangeSerializer(user, data=request.data, context={"request": request})
+
             if not serializer.is_valid():
-                return APIResponse.bad_request(
-                    message="비밀번호 변경 실패",
-                    data=serializer.errors
-                )
-            
+                return APIResponse.bad_request(message="비밀번호 변경 실패", data=serializer.errors)
+
             # 비밀번호 유효성 검증
-            new_password = serializer.validated_data['new_password']
-            import re
-
-            if len(new_password) < 8:
-                return APIResponse.bad_request(
-                    message="비밀번호는 8자 이상이어야 합니다."
-                )
-
-            if len(new_password) > 50:
-                return APIResponse.bad_request(
-                    message="비밀번호는 50자를 초과할 수 없습니다."
-                )
-
-            if " " in new_password:
-                return APIResponse.bad_request(
-                    message="비밀번호에는 공백이 포함될 수 없습니다."
-                )
-
-            if not re.search(r"[a-zA-Z]", new_password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 영문자가 포함되어야 합니다."
-                )
-
-            if not re.search(r"[0-9]", new_password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 숫자가 포함되어야 합니다."
-                )
-
-            if not re.search(r'[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>/?`~]', new_password):
-                return APIResponse.bad_request(
-                    message="비밀번호에는 특수문자가 포함되어야 합니다."
-                )
-
-            if re.search(r"(.)\1{2,}", new_password):
-                return APIResponse.bad_request(
-                    message="동일한 문자를 3개 이상 연속으로 사용할 수 없습니다."
-                )
-
-            # 동일한 문자(숫자/특수문자) 3번 이상 사용 금지
-            from collections import Counter
-
-            char_count = Counter(new_password)
-            for char, count in char_count.items():
-                if count >= 3 and (char.isdigit() or not char.isalpha()):
-                    return APIResponse.bad_request(
-                        message=f"'{char}' 문자는 3번 이상 사용할 수 없습니다."
-                    )
+            new_password = serializer.validated_data["new_password"]
+            error_message = PasswordValidator.validate(new_password)
+            if error_message:
+                return APIResponse.bad_request(message=error_message)
 
             # Serializer를 통해 비밀번호 변경
             serializer.save()
@@ -157,6 +109,46 @@ class PasswordChangeView(APIView):
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
         except Exception as e:
-            return APIResponse.from_exception(
-                e, message="비밀번호 변경에 실패했습니다.", log_error=False
+            return APIResponse.from_exception(e, message="비밀번호 변경에 실패했습니다.", log_error=False)
+
+
+class AccountDeleteView(APIView):
+    """회원 탈퇴 API
+
+    개인정보보호법에 따라 즉시 삭제하지 않고 90일간 보관 후 완전 삭제됩니다.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request: Any) -> APIResponse:
+        """회원 탈퇴 처리
+
+        Args:
+            request: HTTP 요청 객체
+                - password (str, optional): 비밀번호 (일반 가입자만 필요)
+
+        Returns:
+            APIResponse:
+                - 200: 탈퇴 성공
+                - 400: 비밀번호 불일치
+                - 401: 인증 필요
+        """
+        try:
+            user = request.user
+            password = request.data.get("password")
+
+            AuthenticationService.delete_account(user, password)
+
+            # 쿠키 삭제
+            response = APIResponse.success(
+                message="회원 탈퇴가 완료되었습니다. 90일 후 모든 데이터가 완전히 삭제됩니다."
             )
+            response.delete_cookie("refresh_token")
+            response.delete_cookie("access_token")
+
+            return response
+
+        except ValueError as e:
+            return APIResponse.bad_request(message=str(e))
+        except Exception as e:
+            return APIResponse.from_exception(e, message="회원 탈퇴 처리 중 오류가 발생했습니다.")

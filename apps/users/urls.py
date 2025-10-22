@@ -13,7 +13,11 @@ from apps.users.views.email_view import (
     VerifyPasswordResetCodeView,
     VerifySignUpCodeView,
 )
-from apps.users.views.mypage_views import PasswordChangeView, ProfileView
+from apps.users.views.mypage_views import (
+    AccountDeleteView,
+    PasswordChangeView,
+    ProfileView,
+)
 from apps.users.views.oauth_view import GoogleLoginView, KakaoLoginView, NaverLoginView
 
 app_name = "users"
@@ -51,4 +55,5 @@ urlpatterns = [
     # 프로필
     path("profile/", ProfileView.as_view(), name="profile"),
     path("password-change/", PasswordChangeView.as_view(), name="password-change"),
+    path("account/delete/", AccountDeleteView.as_view(), name="account-delete"),
 ]
