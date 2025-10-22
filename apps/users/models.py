@@ -139,26 +139,28 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         updated_at (datetime): 수정 일시 (BaseModel에서 상속)
     """
 
-    username = models.CharField(max_length=20)
-    email = models.EmailField(unique=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="user")
-    joined_type = models.CharField(max_length=20, choices=JOINED_TYPE_CHOICES)
-    profile = models.TextField(blank=True, null=True)
-    profile_image = models.ImageField(upload_to="profile_images/", blank=True, null=True)
-    education_level = models.CharField(max_length=20, choices=EDUCATION_LEVEL_CHOICES, blank=True, null=True)
-    location = models.CharField(max_length=100, blank=True, null=True)
+    username = models.CharField(max_length=20, verbose_name="사용자명")
+    email = models.EmailField(unique=True, verbose_name="이메일")
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="user", verbose_name="역할")
+    joined_type = models.CharField(max_length=20, choices=JOINED_TYPE_CHOICES, verbose_name="가입유형")
+    profile = models.TextField(blank=True, null=True, verbose_name="프로필")
+    profile_image = models.ImageField(upload_to="profile_images/", blank=True, null=True, verbose_name="프로필 이미지")
+    education_level = models.CharField(
+        max_length=20, choices=EDUCATION_LEVEL_CHOICES, blank=True, null=True, verbose_name="교육수준"
+    )
+    location = models.CharField(max_length=100, blank=True, null=True, verbose_name="지역")
 
     # 보안 관련 필드
-    failed_login_attempts = models.IntegerField(default=0)
-    last_failed_login = models.DateTimeField(null=True, blank=True)
+    failed_login_attempts = models.IntegerField(default=0, verbose_name="로그인 실패 횟수")
+    last_failed_login = models.DateTimeField(null=True, blank=True, verbose_name="마지막 로그인 실패 시각")
 
     # 탈퇴 관련 필드
-    is_deleted = models.BooleanField(default=False)
-    deleted_at = models.DateTimeField(null=True, blank=True)
-    deletion_scheduled_at = models.DateTimeField(null=True, blank=True)
+    is_deleted = models.BooleanField(default=False, verbose_name="탈퇴 여부")
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="탈퇴 일시")
+    deletion_scheduled_at = models.DateTimeField(null=True, blank=True, verbose_name="완전 삭제 예정 일시")
 
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True, verbose_name="활성 상태")
+    is_staff = models.BooleanField(default=False, verbose_name="스태프 권한")
 
     objects = UserManager()
 
@@ -169,6 +171,12 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         db_table = "users"
         verbose_name = "사용자"
         verbose_name_plural = "사용자들"
+        indexes = [
+            models.Index(fields=["is_deleted"], name="idx_user_is_deleted"),
+            models.Index(fields=["joined_type"], name="idx_user_joined_type"),
+            models.Index(fields=["created_at"], name="idx_user_created_at"),
+            models.Index(fields=["email", "is_deleted"], name="idx_user_email_deleted"),
+        ]
 
     def __str__(self):
         return self.username
