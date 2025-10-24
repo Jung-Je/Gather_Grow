@@ -269,10 +269,7 @@ class MemberService:
             if gathering.user != user:
                 raise ValueError("모임장만 멤버를 강제 탈퇴시킬 수 있습니다.")
 
-            member = (
-                GatheringMember.objects.select_for_update()
-                .get(id=member_id, gathering=gathering, is_active=True)
-            )
+            member = GatheringMember.objects.select_for_update().get(id=member_id, gathering=gathering, is_active=True)
 
             # 모임장 자신은 강제 탈퇴 불가
             if member.is_leader:
