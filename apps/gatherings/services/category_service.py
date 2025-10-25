@@ -52,11 +52,16 @@ class CategoryService:
             카테고리 정보 및 모임 수 통계
         """
         try:
+            from apps.gatherings.models import Gathering
+
             category = (
                 Category.objects.filter(id=category_id)
+                .select_related("parent")
                 .annotate(
                     total_gatherings=Count("gatherings"),
-                    recruiting_gatherings=Count("gatherings", filter=Q(gatherings__status="recruiting")),
+                    recruiting_gatherings=Count(
+                        "gatherings", filter=Q(gatherings__status=Gathering.GatheringStatus.RECRUITING)
+                    ),
                 )
                 .first()
             )
@@ -181,10 +186,14 @@ class CategoryService:
             ValueError: 존재하지 않는 카테고리 또는 모임이 있는 경우
         """
         try:
+            from apps.gatherings.models import Gathering
+
             category = Category.objects.get(id=category_id)
 
             # 해당 카테고리의 모임이 있는지 확인
-            if category.gatherings.filter(status__in=["recruiting", "in_progress"]).exists():
+            if category.gatherings.filter(
+                status__in=[Gathering.GatheringStatus.RECRUITING, Gathering.GatheringStatus.IN_PROGRESS]
+            ).exists():
                 raise ValueError("진행 중인 모임이 있는 카테고리는 비활성화할 수 없습니다.")
 
             category.is_active = False
