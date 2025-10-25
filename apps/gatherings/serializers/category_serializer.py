@@ -35,10 +35,15 @@ class CategorySerializer(serializers.ModelSerializer):
         - 자기 자신을 부모로 설정할 수 없음
         - 2단계 이상의 계층 구조는 지원하지 않음
         """
-        if value and self.instance and value.id == self.instance.id:
+        if not value:
+            return value
+
+        # 수정 시 자기 자신을 부모로 설정하는지 확인
+        if self.instance and value.id == self.instance.id:
             raise serializers.ValidationError("자기 자신을 부모 카테고리로 설정할 수 없습니다.")
 
-        if value and value.parent is not None:
+        # 2단계 이상의 계층 구조 방지
+        if value.parent is not None:
             raise serializers.ValidationError("2단계 이상의 계층 구조는 지원하지 않습니다.")
 
         return value
