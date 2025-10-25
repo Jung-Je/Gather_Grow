@@ -142,6 +142,7 @@ class MemberService:
             raise ValueError("존재하지 않는 멤버입니다.")
 
     @staticmethod
+    @transaction.atomic
     def reject_member(member_id: int, user) -> GatheringMember:
         """멤버 거절
 
@@ -201,9 +202,9 @@ class MemberService:
             if member.is_leader:
                 raise ValueError("모임장은 탈퇴할 수 없습니다. 모임을 삭제하거나 다른 멤버에게 모임장을 위임해주세요.")
 
-            # 승인된 멤버만 탈퇴 가능
+            # 승인된 멤버만 탈퇴 가능 (대기 중인 멤버는 cancel_join_request 사용)
             if not member.is_approved:
-                raise ValueError("승인되지 않은 멤버는 가입 신청을 취소할 수 없습니다.")
+                raise ValueError("승인되지 않은 멤버는 탈퇴할 수 없습니다. 가입 신청 취소를 이용해주세요.")
 
             # 탈퇴 처리 (모델 메서드 사용)
             member.leave()
