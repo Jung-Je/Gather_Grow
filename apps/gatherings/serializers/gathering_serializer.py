@@ -159,12 +159,6 @@ class GatheringCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("모집 인원은 최대 100명까지 가능합니다.")
         return value
 
-    def create(self, validated_data):
-        """모임 생성 시 작성자를 자동으로 설정"""
-        user = self.context["request"].user
-        validated_data["user"] = user
-        return super().create(validated_data)
-
 
 class GatheringUpdateSerializer(serializers.ModelSerializer):
     """모임 수정용 Serializer
