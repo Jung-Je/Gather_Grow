@@ -114,7 +114,9 @@ class MemberLeaveSerializer(serializers.Serializer):
 
         # 모임장은 탈퇴 불가
         if member.is_leader:
-            raise serializers.ValidationError("모임장은 탈퇴할 수 없습니다. 모임을 삭제하거나 다른 멤버에게 모임장을 위임해주세요.")
+            raise serializers.ValidationError(
+                "모임장은 탈퇴할 수 없습니다. 모임을 삭제하거나 다른 멤버에게 모임장을 위임해주세요."
+            )
 
         # 승인된 멤버만 탈퇴 가능
         if not member.is_approved:

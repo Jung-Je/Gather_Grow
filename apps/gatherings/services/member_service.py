@@ -173,7 +173,9 @@ class MemberService:
         Returns:
             제거된 멤버 객체
         """
-        member = GatheringMember.objects.select_for_update().get(id=member_id, gathering_id=gathering_id, is_active=True)
+        member = GatheringMember.objects.select_for_update().get(
+            id=member_id, gathering_id=gathering_id, is_active=True
+        )
 
         # 승인된 멤버는 leave() 사용, 그 외는 delete()
         if member.is_approved:

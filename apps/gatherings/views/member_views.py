@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
+from apps.gatherings.models import GatheringMember
 from apps.gatherings.serializers.member_serializer import (
     GatheringMemberSerializer,
     MemberApprovalSerializer,
@@ -13,7 +14,6 @@ from apps.gatherings.serializers.member_serializer import (
     MemberRemoveSerializer,
 )
 from apps.gatherings.services.member_service import MemberService
-from apps.gatherings.models import GatheringMember
 
 
 class GatheringMemberListView(APIView):
