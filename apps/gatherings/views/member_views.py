@@ -7,9 +7,13 @@ from apps.common.responses import APIResponse
 from apps.gatherings.serializers.member_serializer import (
     GatheringMemberSerializer,
     MemberApprovalSerializer,
+    MemberCancelSerializer,
     MemberJoinSerializer,
+    MemberLeaveSerializer,
+    MemberRemoveSerializer,
 )
 from apps.gatherings.services.member_service import MemberService
+from apps.gatherings.models import GatheringMember
 
 
 class GatheringMemberListView(APIView):
@@ -60,10 +64,14 @@ class MemberJoinView(APIView):
                 - 401: 인증 필요
         """
         try:
+            serializer = MemberJoinSerializer(data={"gathering": gathering_id}, context={"request": request})
+            serializer.is_valid(raise_exception=True)
+
+            # 서비스 레이어에서 비즈니스 로직 처리
             member = MemberService.join_gathering(user=request.user, gathering_id=gathering_id)
 
-            serializer = GatheringMemberSerializer(member)
-            return APIResponse.created(message="모임 가입 신청이 완료되었습니다.", data=serializer.data)
+            result_serializer = GatheringMemberSerializer(member)
+            return APIResponse.created(message="모임 가입 신청이 완료되었습니다.", data=result_serializer.data)
 
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
@@ -91,20 +99,26 @@ class MemberApprovalView(APIView):
                 - 401: 인증 필요
         """
         try:
-            action = request.data.get("action")
+            try:
+                member = GatheringMember.objects.get(id=member_id)
+            except GatheringMember.DoesNotExist:
+                return APIResponse.not_found(message="존재하지 않는 멤버입니다.")
 
-            if not action or action not in ["approve", "reject"]:
-                return APIResponse.bad_request(message="action은 'approve' 또는 'reject'여야 합니다.")
+            # Serializer로 검증
+            serializer = MemberApprovalSerializer(instance=member, data=request.data, context={"request": request})
+            serializer.is_valid(raise_exception=True)
 
+            # 서비스 레이어에서 비즈니스 로직 처리
+            action = serializer.validated_data["action"]
             if action == "approve":
-                member = MemberService.approve_member(member_id=member_id, user=request.user)
+                member = MemberService.approve_member(member_id=member_id)
                 message = "멤버가 승인되었습니다."
             else:
-                member = MemberService.reject_member(member_id=member_id, user=request.user)
+                member = MemberService.reject_member(member_id=member_id)
                 message = "멤버가 거절되었습니다."
 
-            serializer = GatheringMemberSerializer(member)
-            return APIResponse.success(message=message, data=serializer.data)
+            result_serializer = GatheringMemberSerializer(member)
+            return APIResponse.success(message=message, data=result_serializer.data)
 
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
@@ -131,6 +145,10 @@ class MemberLeaveView(APIView):
                 - 401: 인증 필요
         """
         try:
+            serializer = MemberLeaveSerializer(data={"gathering": gathering_id}, context={"request": request})
+            serializer.is_valid(raise_exception=True)
+
+            # 서비스 레이어에서 비즈니스 로직 처리
             MemberService.leave_gathering(user=request.user, gathering_id=gathering_id)
             return APIResponse.success(message="모임에서 탈퇴했습니다.")
 
@@ -159,6 +177,10 @@ class MemberCancelJoinView(APIView):
                 - 401: 인증 필요
         """
         try:
+            serializer = MemberCancelSerializer(data={"gathering": gathering_id}, context={"request": request})
+            serializer.is_valid(raise_exception=True)
+
+            # 서비스 레이어에서 비즈니스 로직 처리
             MemberService.cancel_join_request(user=request.user, gathering_id=gathering_id)
             return APIResponse.success(message="가입 신청이 취소되었습니다.")
 
@@ -188,7 +210,13 @@ class MemberRemoveView(APIView):
                 - 401: 인증 필요
         """
         try:
-            MemberService.remove_member(gathering_id=gathering_id, member_id=member_id, user=request.user)
+            serializer = MemberRemoveSerializer(
+                data={"gathering": gathering_id, "member": member_id}, context={"request": request}
+            )
+            serializer.is_valid(raise_exception=True)
+
+            # 서비스 레이어에서 비즈니스 로직 처리
+            MemberService.remove_member(gathering_id=gathering_id, member_id=member_id)
             return APIResponse.success(message="멤버가 강제 탈퇴되었습니다.")
 
         except ValueError as e:
