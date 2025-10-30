@@ -237,15 +237,16 @@ class GatheringAPITestCase(APITestCase):
         )
 
     def test_gathering_list(self):
-        """모임 목록 조회 테스트"""
+        """모임 목록 조회 테스트 (페이지네이션)"""
         url = "/api/v1/gatherings/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["data"]), 1)
+        self.assertEqual(response.data["data"]["count"], 1)
+        self.assertEqual(len(response.data["data"]["results"]), 1)
 
     def test_gathering_list_filter_by_type(self):
-        """모임 타입 필터링 테스트"""
+        """모임 타입 필터링 테스트 (페이지네이션)"""
         # 프로젝트 모임 생성
         Gathering.objects.create(
             user=self.user1,
@@ -266,17 +267,45 @@ class GatheringAPITestCase(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["data"]), 1)
-        self.assertEqual(response.data["data"][0]["type"], "study")
+        self.assertEqual(response.data["data"]["count"], 1)
+        self.assertEqual(len(response.data["data"]["results"]), 1)
+        self.assertEqual(response.data["data"]["results"][0]["type"], "study")
 
     def test_gathering_list_search(self):
-        """모임 검색 테스트"""
+        """모임 검색 테스트 (페이지네이션)"""
         url = "/api/v1/gatherings/?search=Django"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["data"]), 1)
-        self.assertIn("Django", response.data["data"][0]["title"])
+        self.assertEqual(response.data["data"]["count"], 1)
+        self.assertEqual(len(response.data["data"]["results"]), 1)
+        self.assertIn("Django", response.data["data"]["results"][0]["title"])
+
+    def test_gathering_list_invalid_filter(self):
+        """모임 목록 조회 시 잘못된 필터 값 테스트"""
+        # 잘못된 type
+        url = "/api/v1/gatherings/?type=invalid"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("잘못된 모임 유형", response.data["message"])
+
+        # 잘못된 status
+        url = "/api/v1/gatherings/?status=invalid"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("잘못된 모집 상태", response.data["message"])
+
+        # 잘못된 study_type
+        url = "/api/v1/gatherings/?study_type=invalid"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("잘못된 진행 방식", response.data["message"])
+
+        # 잘못된 target_level
+        url = "/api/v1/gatherings/?target_level=invalid"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("잘못된 대상 수준", response.data["message"])
 
     def test_gathering_detail(self):
         """모임 상세 조회 테스트"""
@@ -402,13 +431,14 @@ class GatheringAPITestCase(APITestCase):
         self.assertIn("is_full", data)
 
     def test_my_gathering_list(self):
-        """내 모임 목록 조회 테스트"""
+        """내 모임 목록 조회 테스트 (페이지네이션)"""
         self.client.force_authenticate(user=self.user1)
         url = "/api/v1/gatherings/my/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["data"]), 1)
+        self.assertEqual(response.data["data"]["count"], 1)
+        self.assertEqual(len(response.data["data"]["results"]), 1)
 
 
 class MemberAPITestCase(APITestCase):
@@ -505,23 +535,30 @@ class MemberAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_member_list(self):
-        """멤버 목록 조회 테스트"""
-        # 멤버 추가
+        """멤버 목록 조회 테스트 (승인된 멤버만, 페이지네이션)"""
+        # 승인된 멤버 추가
         GatheringMember.objects.create(
             user=self.user1,
+            gathering=self.gathering,
+            status=GatheringMember.MemberStatus.APPROVED,
+        )
+
+        # 대기 중인 멤버 추가 (목록에 안 나와야 함)
+        GatheringMember.objects.create(
+            user=self.user2,
             gathering=self.gathering,
             status=GatheringMember.MemberStatus.PENDING,
         )
 
-        self.client.force_authenticate(user=self.leader)
         url = f"/api/v1/gatherings/{self.gathering.id}/members/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["data"]), 2)  # 모임장 + user1
+        self.assertEqual(response.data["data"]["count"], 2)  # 모임장 + 승인된 user1만
+        self.assertEqual(len(response.data["data"]["results"]), 2)
 
     def test_pending_member_list(self):
-        """승인 대기 멤버 목록 조회 테스트"""
+        """승인 대기 멤버 목록 조회 테스트 (모임장, 페이지네이션)"""
         # 대기 중인 멤버 추가
         GatheringMember.objects.create(
             user=self.user1,
@@ -534,8 +571,25 @@ class MemberAPITestCase(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["data"]), 1)
-        self.assertEqual(response.data["data"][0]["status"], "pending")
+        self.assertEqual(response.data["data"]["count"], 1)
+        self.assertEqual(len(response.data["data"]["results"]), 1)
+        self.assertEqual(response.data["data"]["results"][0]["status"], "pending")
+
+    def test_pending_member_list_unauthorized(self):
+        """승인 대기 멤버 목록 조회 실패 테스트 (모임장 아님)"""
+        # 대기 중인 멤버 추가
+        GatheringMember.objects.create(
+            user=self.user1,
+            gathering=self.gathering,
+            status=GatheringMember.MemberStatus.PENDING,
+        )
+
+        # 일반 사용자로 조회 시도
+        self.client.force_authenticate(user=self.user2)
+        url = f"/api/v1/gatherings/{self.gathering.id}/members/pending/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_member_approval_by_leader(self):
         """멤버 승인 테스트 (모임장)"""
@@ -561,6 +615,28 @@ class MemberAPITestCase(APITestCase):
         # current_members 증가 확인
         self.gathering.refresh_from_db()
         self.assertEqual(self.gathering.current_members, 2)
+
+    def test_member_approval_full_gathering_fail(self):
+        """정원 마감 시 멤버 승인 실패 테스트 (race condition 방지)"""
+        # 모임을 정원 마감 상태로 변경
+        self.gathering.current_members = self.gathering.max_members
+        self.gathering.save()
+
+        # 대기 중인 멤버 생성
+        member = GatheringMember.objects.create(
+            user=self.user1,
+            gathering=self.gathering,
+            status=GatheringMember.MemberStatus.PENDING,
+        )
+
+        self.client.force_authenticate(user=self.leader)
+        url = f"/api/v1/gatherings/members/{member.id}/approval/"
+        data = {"action": "approve"}
+        response = self.client.patch(url, data, format="json")
+
+        # 정원 초과로 승인 실패해야 함
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("정원", response.data["message"])
 
     def test_member_rejection_by_leader(self):
         """멤버 거절 테스트 (모임장)"""
