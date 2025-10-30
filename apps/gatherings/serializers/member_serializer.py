@@ -4,10 +4,9 @@ from apps.gatherings.models import GatheringMember
 
 
 class GatheringMemberSerializer(serializers.ModelSerializer):
-    """모임 멤버 조회용 Serializer"""
+    """모임 멤버 조회용 Serializer (개인정보 보호: 이메일 제외)"""
 
     username = serializers.CharField(source="user.username", read_only=True)
-    user_email = serializers.EmailField(source="user.email", read_only=True)
     gathering_title = serializers.CharField(source="gathering.title", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
@@ -20,7 +19,6 @@ class GatheringMemberSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "username",
-            "user_email",
             "gathering",
             "gathering_title",
             "role",
@@ -90,9 +88,7 @@ class MemberApprovalSerializer(serializers.Serializer):
         if member.status != GatheringMember.MemberStatus.PENDING:
             raise serializers.ValidationError("대기 중인 멤버만 승인/거절할 수 있습니다.")
 
-        # 승인 시 정원 확인
-        if attrs["action"] == "approve" and member.gathering.is_full:
-            raise serializers.ValidationError("모집 정원이 마감되어 승인할 수 없습니다.")
+        # 정원 체크는 Service layer에서 수행 (race condition 방지)
 
         return attrs
 
