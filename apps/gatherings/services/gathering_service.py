@@ -175,19 +175,32 @@ class GatheringService:
 
             # 모임장만 삭제 가능
             if gathering.user != user:
+                logger.warning(
+                    f"Unauthorized gathering deletion attempt: user_id={user.id} tried to delete gathering_id={gathering_id} (owner: user_id={gathering.user_id})"
+                )
                 raise ValueError("모임장만 모임을 삭제할 수 있습니다.")
 
             # 진행 중이거나 종료된 모임은 삭제 불가
             if gathering.status in [Gathering.GatheringStatus.IN_PROGRESS, Gathering.GatheringStatus.FINISHED]:
+                logger.warning(
+                    f"Cannot delete gathering in {gathering.status} status: gathering_id={gathering_id}, user_id={user.id}"
+                )
                 raise ValueError("진행 중이거나 종료된 모임은 삭제할 수 없습니다.")
 
             # 참여 인원이 2명 이상이면 삭제 불가
             if gathering.current_members > 1:
+                logger.warning(
+                    f"Cannot delete gathering with members: gathering_id={gathering_id}, current_members={gathering.current_members}, user_id={user.id}"
+                )
                 raise ValueError("참여 인원이 있는 모임은 삭제할 수 없습니다. 먼저 멤버를 삭제해주세요.")
 
-            gathering.delete()
+            # 삭제 전 정보 기록
+            logger.info(
+                f"Gathering deleted: gathering_id={gathering_id}, title='{gathering.title}', "
+                f"type={gathering.type}, status={gathering.status}, deleted_by_user_id={user.id}"
+            )
 
-            logger.info(f"Gathering deleted: ID {gathering_id} by user {user.id}")
+            gathering.delete()
             return True
 
         except Gathering.DoesNotExist:
@@ -213,6 +226,9 @@ class GatheringService:
 
             # 모임장만 상태 변경 가능
             if gathering.user != user:
+                logger.warning(
+                    f"Unauthorized status change attempt: user_id={user.id} tried to change gathering_id={gathering_id} status (owner: user_id={gathering.user_id})"
+                )
                 raise ValueError("모임장만 모임 상태를 변경할 수 있습니다.")
 
             # 상태 변경 유효성 검증
@@ -230,12 +246,19 @@ class GatheringService:
             }
 
             if new_status not in valid_transitions.get(gathering.status, []):
+                logger.warning(
+                    f"Invalid status transition: gathering_id={gathering_id}, from={gathering.status} to={new_status}, user_id={user.id}"
+                )
                 raise ValueError(f"현재 상태({gathering.get_status_display()})에서 변경할 수 없는 상태입니다.")
 
+            old_status = gathering.status
             gathering.status = new_status
             gathering.save()
 
-            logger.info(f"Gathering status changed: {gathering.title} (ID: {gathering.id}) to {new_status}")
+            logger.info(
+                f"Gathering status changed: gathering_id={gathering_id}, title='{gathering.title}', "
+                f"from={old_status} to={new_status}, changed_by_user_id={user.id}"
+            )
             return gathering
 
         except Gathering.DoesNotExist:
