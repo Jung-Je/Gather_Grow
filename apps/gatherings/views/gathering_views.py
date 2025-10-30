@@ -1,5 +1,6 @@
 from typing import Any
 
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
 
@@ -13,6 +14,14 @@ from apps.gatherings.serializers.gathering_serializer import (
 from apps.gatherings.services.gathering_service import GatheringService
 
 
+class GatheringPagination(PageNumberPagination):
+    """모임 목록 페이지네이션"""
+
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
 class GatheringListView(APIView):
     """모임 목록 조회 및 생성 API"""
 
@@ -24,15 +33,18 @@ class GatheringListView(APIView):
         Query Parameters:
             type (str): 모임 유형 (study/project)
             category (int): 카테고리 ID
-            status (str): 모집 상태
+            status (str): 모집 상태 (recruiting/recruitment_complete/in_progress/finished)
             study_type (str): 진행 방식 (online/offline/mixed)
-            target_level (str): 대상 수준
+            target_level (str): 대상 수준 (beginner/intermediate/advanced/all)
             is_recruiting (bool): 모집 중 여부
             search (str): 검색어 (제목/설명)
+            page (int): 페이지 번호 (default: 1)
+            page_size (int): 페이지 크기 (default: 20, max: 100)
 
         Returns:
             APIResponse:
-                - 200: 모임 목록
+                - 200: 모임 목록 (페이지네이션)
+                - 400: 잘못된 필터 값
         """
         # 필터 파라미터 추출
         gathering_type = request.query_params.get("type")
@@ -42,6 +54,29 @@ class GatheringListView(APIView):
         target_level = request.query_params.get("target_level")
         is_recruiting = request.query_params.get("is_recruiting")
         search = request.query_params.get("search")
+
+        # 필터 값 검증
+        from apps.gatherings.models import Gathering
+
+        if gathering_type and gathering_type not in dict(Gathering.GatheringType.choices):
+            return APIResponse.bad_request(
+                message=f"잘못된 모임 유형입니다. 허용된 값: {', '.join(dict(Gathering.GatheringType.choices).keys())}"
+            )
+
+        if status and status not in dict(Gathering.GatheringStatus.choices):
+            return APIResponse.bad_request(
+                message=f"잘못된 모집 상태입니다. 허용된 값: {', '.join(dict(Gathering.GatheringStatus.choices).keys())}"
+            )
+
+        if study_type and study_type not in dict(Gathering.StudyType.choices):
+            return APIResponse.bad_request(
+                message=f"잘못된 진행 방식입니다. 허용된 값: {', '.join(dict(Gathering.StudyType.choices).keys())}"
+            )
+
+        if target_level and target_level not in dict(Gathering.TargetLevel.choices):
+            return APIResponse.bad_request(
+                message=f"잘못된 대상 수준입니다. 허용된 값: {', '.join(dict(Gathering.TargetLevel.choices).keys())}"
+            )
 
         # is_recruiting을 boolean으로 변환
         if is_recruiting is not None:
@@ -65,8 +100,19 @@ class GatheringListView(APIView):
             search=search,
         )
 
-        serializer = GatheringListSerializer(gatherings, many=True)
-        return APIResponse.success(message="모임 목록 조회 성공", data=serializer.data)
+        paginator = GatheringPagination()
+        paginated_gatherings = paginator.paginate_queryset(gatherings, request)
+        serializer = GatheringListSerializer(paginated_gatherings, many=True)
+
+        return APIResponse.success(
+            message="모임 목록 조회 성공",
+            data={
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": serializer.data,
+            },
+        )
 
     def post(self, request: Any) -> APIResponse:
         """모임 생성
@@ -245,18 +291,31 @@ class MyGatheringListView(APIView):
 
         Query Parameters:
             role (str, optional): 역할 필터 (leader/participant)
+            page (int): 페이지 번호 (default: 1)
+            page_size (int): 페이지 크기 (default: 20, max: 100)
 
         Returns:
             APIResponse:
-                - 200: 참여 중인 모임 목록
+                - 200: 참여 중인 모임 목록 (페이지네이션)
                 - 401: 인증 필요
         """
         role = request.query_params.get("role")
 
         gatherings = GatheringService.get_my_gatherings(user=request.user, role=role)
 
-        serializer = GatheringListSerializer(gatherings, many=True)
-        return APIResponse.success(message="내 모임 목록 조회 성공", data=serializer.data)
+        paginator = GatheringPagination()
+        paginated_gatherings = paginator.paginate_queryset(gatherings, request)
+        serializer = GatheringListSerializer(paginated_gatherings, many=True)
+
+        return APIResponse.success(
+            message="내 모임 목록 조회 성공",
+            data={
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": serializer.data,
+            },
+        )
 
 
 class GatheringStatisticsView(APIView):
