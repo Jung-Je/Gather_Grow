@@ -1,6 +1,8 @@
 from typing import Any
 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
@@ -16,33 +18,55 @@ from apps.gatherings.serializers.member_serializer import (
 from apps.gatherings.services.member_service import MemberService
 
 
-class GatheringMemberListView(APIView):
-    """모임 멤버 목록 조회 API"""
+class MemberPagination(PageNumberPagination):
+    """멤버 목록 페이지네이션"""
 
-    permission_classes = [IsAuthenticated]
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+
+class GatheringMemberListView(APIView):
+    """모임 멤버 목록 조회 API (승인된 멤버만)"""
+
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request: Any, gathering_id: int) -> APIResponse:
-        """모임 멤버 목록 조회
+        """모임 멤버 목록 조회 (승인된 멤버만 공개)
 
         Query Parameters:
-            status (str, optional): 멤버 상태 필터 (pending/approved/rejected)
             role (str, optional): 역할 필터 (leader/participant)
+            page (int): 페이지 번호 (default: 1)
+            page_size (int): 페이지 크기 (default: 50, max: 200)
 
         Args:
             gathering_id: 모임 ID
 
         Returns:
             APIResponse:
-                - 200: 멤버 목록
-                - 401: 인증 필요
+                - 200: 승인된 멤버 목록 (누구나 조회 가능, 페이지네이션)
         """
-        status = request.query_params.get("status")
         role = request.query_params.get("role")
 
-        members = MemberService.get_gathering_members(gathering_id=gathering_id, status=status, role=role)
+        # 승인된 멤버만 조회 (개인정보 보호)
+        members = MemberService.get_gathering_members(
+            gathering_id=gathering_id, status=GatheringMember.MemberStatus.APPROVED, role=role
+        )
 
-        serializer = GatheringMemberSerializer(members, many=True)
-        return APIResponse.success(message="멤버 목록 조회 성공", data=serializer.data)
+        # 페이지네이션 적용
+        paginator = MemberPagination()
+        paginated_members = paginator.paginate_queryset(members, request)
+        serializer = GatheringMemberSerializer(paginated_members, many=True)
+
+        return APIResponse.success(
+            message="멤버 목록 조회 성공",
+            data={
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": serializer.data,
+            },
+        )
 
 
 class MemberJoinView(APIView):
@@ -231,21 +255,42 @@ class PendingMemberListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Any, gathering_id: int) -> APIResponse:
-        """승인 대기 중인 멤버 목록 조회
+        """승인 대기 중인 멤버 목록 조회 (모임장만 가능)
+
+        Query Parameters:
+            page (int): 페이지 번호 (default: 1)
+            page_size (int): 페이지 크기 (default: 50, max: 200)
 
         Args:
             gathering_id: 모임 ID
-            request: HTTP 요청 객체 (인증 필요)
+            request: HTTP 요청 객체 (모임장만 가능)
 
         Returns:
             APIResponse:
-                - 200: 대기 중인 멤버 목록
+                - 200: 대기 중인 멤버 목록 (페이지네이션)
                 - 401: 인증 필요
+                - 403: 권한 없음 (모임장 아님)
         """
+        # 모임장 권한 확인
+        if not MemberService.is_gathering_leader(user=request.user, gathering_id=gathering_id):
+            return APIResponse.forbidden(message="모임장만 대기 중인 멤버 목록을 조회할 수 있습니다.")
+
         members = MemberService.get_pending_members(gathering_id=gathering_id)
 
-        serializer = GatheringMemberSerializer(members, many=True)
-        return APIResponse.success(message="대기 중인 멤버 목록 조회 성공", data=serializer.data)
+        # 페이지네이션 적용
+        paginator = MemberPagination()
+        paginated_members = paginator.paginate_queryset(members, request)
+        serializer = GatheringMemberSerializer(paginated_members, many=True)
+
+        return APIResponse.success(
+            message="대기 중인 멤버 목록 조회 성공",
+            data={
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": serializer.data,
+            },
+        )
 
 
 class MemberStatusCheckView(APIView):
