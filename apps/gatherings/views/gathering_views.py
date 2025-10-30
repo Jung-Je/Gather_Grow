@@ -150,17 +150,14 @@ class GatheringDetailView(APIView):
                 - 404: 존재하지 않는 모임
         """
         try:
-            serializer = GatheringUpdateSerializer(data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
-
             # 인스턴스를 먼저 가져와서 검증
             gathering = GatheringService.get_gathering_detail(gathering_id)
             if not gathering:
                 return APIResponse.not_found(message="존재하지 않는 모임입니다.")
 
-            # Serializer의 validate 메서드를 수동으로 호출하기 위해 instance 설정
-            serializer.instance = gathering
-            serializer.validate(serializer.validated_data)
+            # instance를 전달하여 serializer 생성 (validate에서 instance.status 접근 필요)
+            serializer = GatheringUpdateSerializer(instance=gathering, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
 
             # 서비스 호출
             updated_gathering = GatheringService.update_gathering(
