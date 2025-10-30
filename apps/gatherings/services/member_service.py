@@ -82,20 +82,41 @@ class MemberService:
     @staticmethod
     @transaction.atomic
     def approve_member(member_id: int) -> GatheringMember:
-        """멤버 승인 (검증은 Serializer에서 완료됨)
+        """멤버 승인
 
         Args:
             member_id: 멤버 ID
 
         Returns:
             승인된 멤버 객체
+
+        Raises:
+            ValueError: 승인 불가 조건 (정원 초과 등)
         """
+        # select_for_update로 락 획득 - race condition 방지
         member = GatheringMember.objects.select_related("gathering").select_for_update().get(id=member_id)
+        gathering = Gathering.objects.select_for_update().get(id=member.gathering_id)
+
+        # 대기 중인 멤버만 승인 가능
+        if member.status != GatheringMember.MemberStatus.PENDING:
+            raise ValueError("대기 중인 멤버만 승인할 수 있습니다.")
+
+        # 정원 초과 재검증 (race condition 방지)
+        if gathering.is_full:
+            logger.warning(
+                f"Cannot approve member - gathering is full: member_id={member_id}, "
+                f"gathering_id={gathering.id}, current_members={gathering.current_members}, "
+                f"max_members={gathering.max_members}"
+            )
+            raise ValueError("모집 정원이 마감되어 승인할 수 없습니다.")
 
         # 승인 처리 (모델 메서드 사용)
         member.approve()
 
-        logger.info(f"Member {member.id} approved in gathering {member.gathering.id}")
+        logger.info(
+            f"Member approved: member_id={member.id}, user_id={member.user_id}, "
+            f"gathering_id={member.gathering.id}, current_members={gathering.current_members + 1}/{gathering.max_members}"
+        )
         return member
 
     @staticmethod
@@ -109,12 +130,15 @@ class MemberService:
         Returns:
             거절된 멤버 객체
         """
-        member = GatheringMember.objects.select_related("gathering").get(id=member_id)
+        member = GatheringMember.objects.select_related("gathering", "user").get(id=member_id)
 
         # 거절 처리 (모델 메서드 사용)
         member.reject()
 
-        logger.info(f"Member {member.id} rejected in gathering {member.gathering.id}")
+        logger.info(
+            f"Member rejected: member_id={member.id}, user_id={member.user_id}, "
+            f"gathering_id={member.gathering.id}, gathering_title='{member.gathering.title}'"
+        )
         return member
 
     @staticmethod
@@ -173,8 +197,17 @@ class MemberService:
         Returns:
             제거된 멤버 객체
         """
-        member = GatheringMember.objects.select_for_update().get(
-            id=member_id, gathering_id=gathering_id, is_active=True
+        member = (
+            GatheringMember.objects.select_related("user", "gathering")
+            .select_for_update()
+            .get(id=member_id, gathering_id=gathering_id, is_active=True)
+        )
+
+        # 강제 탈퇴 로깅 (승인 여부와 관계없이 기록)
+        logger.warning(
+            f"Member force removed: member_id={member_id}, user_id={member.user_id}, "
+            f"gathering_id={gathering_id}, gathering_title='{member.gathering.title}', "
+            f"member_status={member.status}, member_role={member.role}"
         )
 
         # 승인된 멤버는 leave() 사용, 그 외는 delete()
@@ -183,7 +216,6 @@ class MemberService:
         else:
             member.delete()
 
-        logger.info(f"Member {member_id} removed from gathering {gathering_id}")
         return member
 
     @staticmethod
