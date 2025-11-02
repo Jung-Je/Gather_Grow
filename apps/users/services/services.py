@@ -54,6 +54,10 @@ class AuthenticationService:
             # 인증 완료 캐시 삭제
             cache.delete(f"signup_email_verified:{email}")
 
+            logger.info(
+                f"User signup successful: user_id={user.id}, username={user.username}, "
+                f"joined_type={user.joined_type}, role={user.role}"
+            )
             return UserResponseSerializer(user).data
 
     @staticmethod
@@ -99,6 +103,11 @@ class AuthenticationService:
             user.last_login = timezone.now()
             user.save(update_fields=["failed_login_attempts", "last_login"])
 
+            logger.info(
+                f"User login successful: user_id={user.id}, username={user.username}, "
+                f"joined_type={user.joined_type}, last_login={user.last_login.isoformat()}"
+            )
+
             user_data = UserResponseSerializer(user).data
             return user_data, str(refresh.access_token), str(refresh)
 
@@ -109,8 +118,14 @@ class AuthenticationService:
                 user.failed_login_attempts += 1
                 user.last_failed_login = timezone.now()
                 user.save(update_fields=["failed_login_attempts", "last_failed_login"])
+
+                logger.warning(
+                    f"User login failed: user_id={user.id}, username={user.username}, "
+                    f"failed_attempts={user.failed_login_attempts}, reason={type(e).__name__}"
+                )
             except User.DoesNotExist:
-                pass
+                # 존재하지 않는 이메일로 로그인 시도 (보안을 위해 상세 정보는 로그하지 않음)
+                logger.warning(f"Login attempt with non-existent email")
             raise e
 
     @staticmethod
@@ -212,7 +227,10 @@ class AuthenticationService:
             # 인증 상태 캐시 삭제
             cache.delete(f"password_reset_verified:{email}")
 
-            logger.info(f"Password reset successfully for user: {email}")
+            logger.info(
+                f"Password reset successful (forgot password): user_id={user.id}, "
+                f"username={user.username}, joined_type={user.joined_type}"
+            )
             return True
         except User.DoesNotExist:
             raise ValueError("사용자를 찾을 수 없습니다.")
@@ -237,12 +255,18 @@ class AuthenticationService:
             ValueError: 현재 비밀번호가 일치하지 않을 때
         """
         if not user.check_password(old_password):
+            logger.warning(
+                f"Password change failed - incorrect old password: user_id={user.id}, username={user.username}"
+            )
             raise ValueError("현재 비밀번호가 일치하지 않습니다.")
 
         user.set_password(new_password)
         user.save()
 
-        logger.info(f"Password changed for user: {user.email}")
+        logger.info(
+            f"Password changed successfully (mypage): user_id={user.id}, "
+            f"username={user.username}, joined_type={user.joined_type}"
+        )
         return True
 
     @staticmethod
@@ -277,6 +301,7 @@ class AuthenticationService:
         """
         # 이미 탈퇴한 회원인지 확인
         if user.is_deleted:
+            logger.warning(f"Account deletion attempt for already deleted user: user_id={user.id}")
             raise ValueError("이미 탈퇴한 회원입니다.")
 
         # 일반 가입자는 비밀번호 확인
@@ -284,6 +309,9 @@ class AuthenticationService:
             if not password:
                 raise ValueError("비밀번호를 입력해주세요.")
             if not user.check_password(password):
+                logger.warning(
+                    f"Account deletion failed - incorrect password: user_id={user.id}, username={user.username}"
+                )
                 raise ValueError("비밀번호가 일치하지 않습니다.")
 
         # 소프트 삭제 처리
@@ -291,6 +319,13 @@ class AuthenticationService:
         user.is_active = False  # 로그인 차단
         user.deleted_at = timezone.now()
         user.deletion_scheduled_at = timezone.now() + timezone.timedelta(days=90)  # 90일 후 완전 삭제
+
+        # 로깅 (개인정보 마스킹 전에 기록)
+        logger.warning(
+            f"User account deleted (soft delete): user_id={user.id}, username={user.username}, "
+            f"joined_type={user.joined_type}, role={user.role}, "
+            f"deletion_scheduled_at={user.deletion_scheduled_at.isoformat()}"
+        )
 
         # 개인정보 마스킹 (복구 불가능하도록)
         user.email = f"deleted_{user.id}@deleted.com"
@@ -302,7 +337,6 @@ class AuthenticationService:
 
         user.save()
 
-        logger.info(f"User {user.id} account deleted (soft delete)")
         return True
 
     @staticmethod

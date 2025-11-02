@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from rest_framework.permissions import IsAuthenticated
@@ -10,6 +11,8 @@ from apps.users.serializers.mypage_serializer import (
 )
 from apps.users.services.services import AuthenticationService
 from apps.users.services.validators import PasswordValidator
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileView(APIView):
@@ -54,9 +57,27 @@ class ProfileView(APIView):
         """
         try:
             user = request.user
+
+            # 변경된 필드 추적
+            changed_fields = []
+            for field in ["username", "profile", "profile_image", "education_level", "location"]:
+                if field in request.data:
+                    old_value = getattr(user, field)
+                    new_value = request.data.get(field)
+                    if old_value != new_value:
+                        changed_fields.append(field)
+
             serializer = ProfileSerializer(user, data=request.data, partial=True, context={"request": request})
             serializer.is_valid(raise_exception=True)
             serializer.save()
+
+            # 로깅 (변경된 필드만 기록)
+            if changed_fields:
+                logger.info(
+                    f"Profile updated: user_id={user.id}, username={user.username}, "
+                    f"changed_fields={', '.join(changed_fields)}"
+                )
+
             return APIResponse.success(message="프로필 수정 성공", data=serializer.data)
         except Exception as e:
             return APIResponse.from_exception(e, message="프로필 수정에 실패했습니다.", log_error=False)

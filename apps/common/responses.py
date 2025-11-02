@@ -134,14 +134,16 @@ class APIResponse(Response):
 
     @classmethod
     def from_exception(cls, exception: Exception, message: Optional[str] = None, log_error: bool = True):
-        """예외를 받아서 적절한 응답을 생성"""
-        if log_error:
-            logger.error(f"Exception handled: {exception.__class__.__name__}: {str(exception)}")
+        """예외를 받아서 적절한 응답을 생성
 
+        500 에러는 사용자에게 상세 내용을 노출하지 않고, 로그로만 기록합니다.
+        """
         # Django REST Framework ValidationError 처리
         if exception.__class__.__name__ == "ValidationError":
             # DRF ValidationError는 detail 속성을 가짐
             error_detail = getattr(exception, "detail", str(exception))
+            if log_error:
+                logger.warning(f"Validation error: {error_detail}")
             return cls.bad_request(
                 message=message or "유효성 검사에 실패했습니다.",
                 data=(error_detail if isinstance(error_detail, dict) else {"error": str(error_detail)}),
@@ -149,17 +151,23 @@ class APIResponse(Response):
 
         # rest_framework_simplejwt TokenError 처리
         elif exception.__class__.__name__ == "TokenError":
+            if log_error:
+                logger.warning(f"Token error: {str(exception)}")
             return cls.bad_request(
                 message=message or "토큰이 유효하지 않거나 만료되었습니다.",
                 data={"error": str(exception)},
             )
 
-        # ValueError는 일반적으로 400 Bad Request
+        # ValueError는 일반적으로 400 Bad Request (예상된 비즈니스 로직 에러)
         elif isinstance(exception, ValueError):
-            return cls.bad_request(message=message or "잘못된 요청입니다.", data={"error": str(exception)})
+            if log_error:
+                logger.warning(f"ValueError: {str(exception)}")
+            return cls.bad_request(message=message or str(exception))
 
         # KeyError는 필수 파라미터 누락
         elif isinstance(exception, KeyError):
+            if log_error:
+                logger.warning(f"KeyError: Missing required field: {str(exception)}")
             return cls.bad_request(
                 message=message or "필수 파라미터가 누락되었습니다.",
                 data={"error": f"Missing required field: {str(exception)}"},
@@ -167,20 +175,26 @@ class APIResponse(Response):
 
         # PermissionError는 403 Forbidden
         elif isinstance(exception, PermissionError):
-            return cls.forbidden(message=message or "권한이 없습니다.", data={"error": str(exception)})
+            if log_error:
+                logger.warning(f"PermissionError: {str(exception)}")
+            return cls.forbidden(message=message or "권한이 없습니다.")
 
         # FileNotFoundError, DoesNotExist 등은 404
         elif isinstance(exception, (FileNotFoundError, AttributeError)):
             if "DoesNotExist" in exception.__class__.__name__:
-                return cls.not_found(
-                    message=message or "리소스를 찾을 수 없습니다.",
-                    data={"error": str(exception)},
-                )
+                if log_error:
+                    logger.info(f"Resource not found: {str(exception)}")
+                return cls.not_found(message=message or "리소스를 찾을 수 없습니다.")
 
-        # 그 외는 500 서버 오류
+        # 그 외는 500 서버 오류 (예상치 못한 에러)
+        # 사용자에게는 일반적인 메시지만 보여주고, 상세 내용은 로그로만 기록
+        if log_error:
+            logger.error(
+                f"Unexpected server error: {exception.__class__.__name__}: {str(exception)}",
+                exc_info=True,  # 스택 트레이스 포함
+            )
         return cls.server_error(
-            message=message or "서버 오류가 발생했습니다.",
-            data={"error": str(exception) if log_error else None},
+            message=message or "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         )
 
     @classmethod
