@@ -8,6 +8,7 @@ class ChatMessage(BaseModel):
     """채팅 메시지 모델
 
     모임 내에서 주고받는 채팅 메시지를 저장합니다.
+    텍스트 메시지와 이미지를 함께 보낼 수 있습니다.
     """
 
     gathering = models.ForeignKey(
@@ -22,7 +23,13 @@ class ChatMessage(BaseModel):
         related_name="chat_messages",
         verbose_name="작성자",
     )
-    message = models.TextField(verbose_name="메시지 내용")
+    message = models.TextField(blank=True, null=True, verbose_name="메시지 내용")
+    image = models.ImageField(
+        upload_to="chat_images/%Y/%m/%d/",
+        blank=True,
+        null=True,
+        verbose_name="이미지",
+    )
 
     class Meta:
         db_table = "chat_messages"
@@ -35,4 +42,15 @@ class ChatMessage(BaseModel):
         ]
 
     def __str__(self):
-        return f"[{self.gathering.title}] {self.user.username}: {self.message[:30]}"
+        msg_preview = self.message[:30] if self.message else "[이미지]"
+        return f"[{self.gathering.title}] {self.user.username}: {msg_preview}"
+
+    @property
+    def has_image(self):
+        """이미지 첨부 여부"""
+        return bool(self.image)
+
+    @property
+    def has_text(self):
+        """텍스트 내용 여부"""
+        return bool(self.message)
