@@ -98,6 +98,16 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
+        "apps.chat": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "daphne": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
     },
 }
 
