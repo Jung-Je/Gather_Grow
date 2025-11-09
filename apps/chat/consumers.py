@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+from collections import defaultdict
 from urllib.parse import parse_qs
 
 from channels.db import database_sync_to_async
@@ -13,6 +15,8 @@ from apps.gatherings.models import Gathering, GatheringMember
 from apps.users.models import User
 
 logger = logging.getLogger(__name__)
+
+user_message_times = defaultdict(list)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -92,6 +96,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message_text = data.get("message")
             # image는 WebSocket으로 전송하지 않고 HTTP API 사용
 
+            # Rate limiting: 10초에 최대 5개 메시지
+            if not await self.check_rate_limit():
+                logger.warning(f"Rate limit exceeded: user_id={self.user.id}, gathering_id={self.gathering_id}")
+                await self.send(
+                    text_data=json.dumps({"error": "메시지 전송 속도 제한을 초과했습니다. 잠시 후 다시 시도해주세요."})
+                )
+                return
+
+            # XSS 방지: HTML 이스케이프 처리
+            if message_text:
+                message_text = escape(message_text)
+
             # 메시지 저장
             message = await self.save_message(message_text)
 
@@ -159,6 +175,33 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """메시지 직렬화"""
         serializer = ChatMessageListSerializer(message)
         return serializer.data
+
+    async def check_rate_limit(self, max_messages=5, time_window=10):
+        """Rate limiting 체크
+
+        Args:
+            max_messages: 시간 창 내 최대 메시지 수 (기본: 5개)
+            time_window: 시간 창 (초) (기본: 10초)
+
+        Returns:
+            bool: 전송 가능 여부
+        """
+        current_time = time.time()
+        user_id = self.user.id
+
+        # 해당 사용자의 메시지 전송 시간 기록
+        message_times = user_message_times[user_id]
+
+        # 시간 창을 벗어난 오래된 기록 제거
+        message_times[:] = [t for t in message_times if current_time - t < time_window]
+
+        # 제한 초과 확인
+        if len(message_times) >= max_messages:
+            return False
+
+        # 현재 시간 기록
+        message_times.append(current_time)
+        return True
 
     @database_sync_to_async
     def get_user_from_token(self):
