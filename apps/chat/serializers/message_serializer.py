@@ -46,7 +46,17 @@ class ChatMessageCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        """메시지 또는 이미지 중 최소 하나는 필수"""
+        """메시지 또는 이미지 중 최소 하나가 있는지 검증합니다.
+
+        Args:
+            attrs (dict): 검증할 필드 데이터
+
+        Returns:
+            dict: 검증된 필드 데이터
+
+        Raises:
+            serializers.ValidationError: 메시지와 이미지가 모두 없는 경우
+        """
         message = attrs.get("message")
         image = attrs.get("image")
 
