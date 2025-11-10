@@ -81,7 +81,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close()
 
     async def disconnect(self, close_code):
-        """WebSocket 연결 해제"""
+        """WebSocket 연결을 해제합니다.
+
+        Args:
+            close_code (int): WebSocket 종료 코드
+        """
         # 채팅방 그룹에서 제거
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
@@ -90,7 +94,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
-        """클라이언트로부터 메시지 수신"""
+        """클라이언트로부터 메시지를 수신하고 처리합니다.
+
+        Args:
+            text_data (str): JSON 형식의 메시지 데이터
+        """
         try:
             data = json.loads(text_data)
             message_text = data.get("message")
@@ -126,14 +134,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({"error": "메시지 전송에 실패했습니다."}))
 
     async def chat_message(self, event):
-        """채팅방 그룹으로부터 메시지를 받아 클라이언트에 전송"""
+        """채팅방 그룹으로부터 메시지를 받아 클라이언트에 전송합니다.
+
+        Args:
+            event (dict): 메시지 이벤트 데이터
+        """
         message = event["message"]
 
         await self.send(text_data=json.dumps({"message": message}))
 
     @database_sync_to_async
     def check_member_permission(self) -> bool:
-        """모임 멤버 권한 확인"""
+        """모임 멤버 권한을 확인합니다.
+
+        Returns:
+            bool: 모임장이거나 승인된 멤버인 경우 True, 아니면 False
+        """
         try:
             gathering = Gathering.objects.get(id=self.gathering_id)
         except Gathering.DoesNotExist:
@@ -153,7 +169,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_message(self, message_text: str):
-        """메시지 DB 저장"""
+        """메시지를 데이터베이스에 저장합니다.
+
+        Args:
+            message_text (str): 저장할 메시지 내용
+
+        Returns:
+            ChatMessage: 생성된 채팅 메시지 객체
+
+        Raises:
+            ValueError: 존재하지 않는 모임이거나 메시지 내용이 비어있는 경우
+        """
         try:
             gathering = Gathering.objects.get(id=self.gathering_id)
         except Gathering.DoesNotExist:
@@ -172,7 +198,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def serialize_message(self, message):
-        """메시지 직렬화"""
+        """메시지를 직렬화하여 JSON 형식으로 변환합니다.
+
+        Args:
+            message (ChatMessage): 직렬화할 채팅 메시지 객체
+
+        Returns:
+            dict: 직렬화된 메시지 데이터
+        """
         serializer = ChatMessageListSerializer(message)
         return serializer.data
 
@@ -180,8 +213,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Rate limiting 체크
 
         Args:
-            max_messages: 시간 창 내 최대 메시지 수 (기본: 5개)
-            time_window: 시간 창 (초) (기본: 10초)
+            max_messages (int): 시간 창 내 최대 메시지 수 (기본: 5개)
+            time_window (int): 시간 창 (초) (기본: 10초)
 
         Returns:
             bool: 전송 가능 여부
@@ -205,7 +238,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_user_from_token(self):
-        """JWT 토큰에서 사용자 인증"""
+        """JWT 토큰에서 사용자를 인증합니다.
+
+        WebSocket 연결의 쿼리 파라미터에서 JWT 토큰을 추출하여 검증하고,
+        해당 토큰에 연결된 사용자 객체를 반환합니다.
+
+        Returns:
+            User: 인증된 사용자 객체, 인증 실패 시 None
+        """
         try:
             # 쿼리 파라미터에서 토큰 추출
             query_string = self.scope.get("query_string", b"").decode()
