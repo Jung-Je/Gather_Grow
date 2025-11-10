@@ -42,6 +42,11 @@ class ChatMessage(BaseModel):
         ]
 
     def __str__(self):
+        """채팅 메시지의 문자열 표현을 반환합니다.
+
+        Returns:
+            str: '[모임명] 사용자명: 메시지 미리보기' 형식의 문자열
+        """
         msg_preview = self.message[:30] if self.message else "[이미지]"
         return f"[{self.gathering.title}] {self.user.username}: {msg_preview}"
 
