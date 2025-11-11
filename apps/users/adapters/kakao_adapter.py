@@ -16,7 +16,18 @@ class CustomKakaoOAuth2Adapter(KakaoOAuth2Adapter):
     """
 
     def get_access_token(self, request, code):
-        """인증 코드를 액세스 토큰으로 교환 (Client Secret 포함)"""
+        """인증 코드를 액세스 토큰으로 교환합니다 (Client Secret 포함).
+
+        Args:
+            request (HttpRequest): HTTP 요청 객체
+            code (str): 카카오로부터 받은 인증 코드
+
+        Returns:
+            dict: 액세스 토큰 정보를 포함한 딕셔너리
+
+        Raises:
+            OAuth2Error: 토큰 교환 실패 또는 API 요청 실패 시
+        """
         url = "https://kauth.kakao.com/oauth/token"
 
         # Client Secret 포함한 요청 데이터
@@ -45,9 +56,21 @@ class CustomKakaoOAuth2Adapter(KakaoOAuth2Adapter):
             raise OAuth2Error(f"카카오 서버 연결 실패: {str(e)}")
 
     def complete_login(self, request, app, token, **kwargs):
-        """카카오 로그인 완료 처리
+        """카카오 로그인 완료 처리를 수행합니다.
 
         토큰을 사용하여 사용자 정보를 가져옵니다.
+
+        Args:
+            request (HttpRequest): HTTP 요청 객체
+            app (SocialApp): 소셜 앱 객체
+            token (str): 액세스 토큰
+            **kwargs: 추가 키워드 인자
+
+        Returns:
+            SocialLogin: 소셜 로그인 객체
+
+        Raises:
+            Exception: 카카오 로그인 처리 중 오류 발생 시
         """
         try:
             return super().complete_login(request, app, token, **kwargs)
