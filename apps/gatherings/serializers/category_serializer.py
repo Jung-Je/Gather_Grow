@@ -30,10 +30,19 @@ class CategorySerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate_parent(self, value):
-        """부모 카테고리 유효성 검증
+        """부모 카테고리 유효성을 검증합니다.
 
         - 자기 자신을 부모로 설정할 수 없음
         - 2단계 이상의 계층 구조는 지원하지 않음
+
+        Args:
+            value (Category): 검증할 부모 카테고리
+
+        Returns:
+            Category: 검증된 부모 카테고리
+
+        Raises:
+            serializers.ValidationError: 자기 자신을 부모로 설정하거나 2단계 이상 계층인 경우
         """
         if not value:
             return value
