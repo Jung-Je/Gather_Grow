@@ -34,18 +34,31 @@ class Category(BaseModel):
         ]
 
     def __str__(self):
+        """카테고리의 문자열 표현을 반환합니다.
+
+        Returns:
+            str: "부모 > 자식" 형식 또는 카테고리명
+        """
         if self.parent:
             return f"{self.parent.name} > {self.name}"
         return self.name
 
     @property
     def is_parent(self):
-        """대분류(부모) 카테고리 여부"""
+        """대분류(부모) 카테고리 여부를 반환합니다.
+
+        Returns:
+            bool: 부모 카테고리인 경우 True, 아니면 False
+        """
         return self.parent is None
 
     @property
     def depth(self):
-        """카테고리 깊이"""
+        """카테고리 계층 깊이를 반환합니다.
+
+        Returns:
+            int: 계층 깊이 (0부터 시작)
+        """
         if self.parent is None:
             return 0
         return 1 + self.parent.depth
@@ -174,32 +187,55 @@ class Gathering(BaseModel):
         ]
 
     def __str__(self):
+        """모임의 문자열 표현을 반환합니다.
+
+        Returns:
+            str: "[유형] 제목" 형식의 문자열
+        """
         return f"[{self.get_type_display()}] {self.title}"
 
     @property
     def is_recruiting(self):
-        """모집 중 여부"""
+        """모집 중 여부를 반환합니다.
+
+        Returns:
+            bool: 모집 중인 경우 True, 아니면 False
+        """
         return self.status == self.GatheringStatus.RECRUITING
 
     @property
     def is_full(self):
-        """정원 마감 여부"""
+        """정원 마감 여부를 반환합니다.
+
+        Returns:
+            bool: 정원이 마감된 경우 True, 아니면 False
+        """
         return self.current_members >= self.max_members
 
     @property
     def remaining_seats(self):
-        """남은 자리 수"""
+        """남은 자리 수를 반환합니다.
+
+        Returns:
+            int: 남은 자리 수 (0 이상)
+        """
         return max(0, self.max_members - self.current_members)
 
     def increment_members(self):
-        """참여 인원 증가"""
+        """참여 인원을 1명 증가시킵니다.
+
+        정원이 마감되면 자동으로 모집완료 상태로 변경됩니다.
+        """
         self.current_members += 1
         if self.is_full:
             self.status = self.GatheringStatus.RECRUITMENT_COMPLETE
         self.save(update_fields=["current_members", "status"])
 
     def decrement_members(self):
-        """참여 인원 감소"""
+        """참여 인원을 1명 감소시킵니다.
+
+        모집완료 상태였다면 자동으로 모집중 상태로 변경됩니다.
+        """
         if self.current_members > 0:
             self.current_members -= 1
             if self.status == self.GatheringStatus.RECRUITMENT_COMPLETE:
@@ -260,33 +296,55 @@ class GatheringMember(BaseModel):
         ]
 
     def __str__(self):
+        """모임 멤버의 문자열 표현을 반환합니다.
+
+        Returns:
+            str: "사용자명 - 모임명 (역할)" 형식의 문자열
+        """
         return f"{self.user.username} - {self.gathering.title} ({self.get_role_display()})"
 
     @property
     def is_leader(self):
-        """모임장 여부"""
+        """모임장 여부를 반환합니다.
+
+        Returns:
+            bool: 모임장인 경우 True, 아니면 False
+        """
         return self.role == self.MemberRole.LEADER
 
     @property
     def is_approved(self):
-        """승인된 멤버 여부"""
+        """승인된 멤버 여부를 반환합니다.
+
+        Returns:
+            bool: 승인된 멤버인 경우 True, 아니면 False
+        """
         return self.status == self.MemberStatus.APPROVED
 
     def approve(self):
-        """멤버 승인"""
+        """대기 중인 멤버를 승인하고 모임 인원을 증가시킵니다.
+
+        대기 상태인 경우에만 승인됩니다.
+        """
         if self.status == self.MemberStatus.PENDING:
             self.status = self.MemberStatus.APPROVED
             self.save(update_fields=["status"])
             self.gathering.increment_members()
 
     def reject(self):
-        """멤버 거절"""
+        """대기 중인 멤버를 거절합니다.
+
+        대기 상태인 경우에만 거절됩니다.
+        """
         if self.status == self.MemberStatus.PENDING:
             self.status = self.MemberStatus.REJECTED
             self.save(update_fields=["status"])
 
     def leave(self):
-        """모임 탈퇴"""
+        """승인된 멤버의 모임 탈퇴를 처리하고 모임 인원을 감소시킵니다.
+
+        승인된 멤버인 경우에만 탈퇴 처리됩니다.
+        """
         if self.is_approved:
             self.is_active = False
             self.save(update_fields=["is_active"])
