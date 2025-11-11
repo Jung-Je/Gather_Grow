@@ -11,6 +11,11 @@ User = get_user_model()
 
 
 class UserSignUpSerializer(serializers.ModelSerializer):
+    """사용자 회원가입 Serializer
+
+    비밀번호 확인 및 유효성 검증을 포함한 회원가입 데이터를 처리합니다.
+    """
+
     password = serializers.CharField(write_only=True)
     confirm_password = serializers.CharField(write_only=True)
 
@@ -26,19 +31,39 @@ class UserSignUpSerializer(serializers.ModelSerializer):
         read_only_fields = ["joined_type"]
 
     def validate_email(self, value):
+        """이메일 중복 여부를 검증합니다.
+
+        Args:
+            value (str): 검증할 이메일 주소
+
+        Returns:
+            str: 검증된 이메일 주소
+
+        Raises:
+            serializers.ValidationError: 이미 사용 중인 이메일인 경우
+        """
         if User.objects.with_deleted().filter(email=value).exists():
             raise serializers.ValidationError("이미 사용 중인 이메일입니다.")
         return value
 
     def validate_password(self, value):
-        """
-        비밀번호 유효성 검증
+        """비밀번호 유효성을 검증합니다.
+
         - 최소 8자, 최대 50자
         - 영문자 포함 (대/소문자 구분 없음)
         - 숫자 포함 필수
         - 특수문자 포함 필수
         - 연속된 같은 문자 3개 이상 금지
         - 공백 포함 금지
+
+        Args:
+            value (str): 검증할 비밀번호
+
+        Returns:
+            str: 검증된 비밀번호
+
+        Raises:
+            serializers.ValidationError: 비밀번호가 유효성 검사를 통과하지 못한 경우
         """
         error_message = PasswordValidator.validate(value)
         if error_message:
@@ -47,7 +72,17 @@ class UserSignUpSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        """비밀번호 일치 여부 확인"""
+        """비밀번호와 비밀번호 확인이 일치하는지 검증합니다.
+
+        Args:
+            data (dict): 검증할 데이터
+
+        Returns:
+            dict: 검증된 데이터
+
+        Raises:
+            serializers.ValidationError: 비밀번호가 일치하지 않는 경우
+        """
         password = data.get("password")
         confirm_password = data.get("confirm_password")
 
@@ -57,16 +92,39 @@ class UserSignUpSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        """confirm_password를 제외하고 User 생성"""
+        """confirm_password를 제외하고 User 객체를 생성합니다.
+
+        Args:
+            validated_data (dict): 검증된 데이터
+
+        Returns:
+            User: 생성된 사용자 객체
+        """
         validated_data.pop("confirm_password", None)
         return super().create(validated_data)
 
 
 class UserLoginSerializer(serializers.Serializer):
+    """사용자 로그인 Serializer
+
+    이메일과 비밀번호로 사용자 인증을 처리합니다.
+    """
+
     email = serializers.EmailField(required=True)
     password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, data):
+        """이메일과 비밀번호로 사용자를 인증합니다.
+
+        Args:
+            data (dict): 검증할 데이터 (email, password 포함)
+
+        Returns:
+            dict: 검증된 데이터 (user 객체 포함)
+
+        Raises:
+            serializers.ValidationError: 인증 실패, 계정 비활성화, 필드 누락 시
+        """
         email = data.get("email")
         password = data.get("password")
 
@@ -89,8 +147,9 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class SetNewPasswordSerializer(serializers.Serializer):
-    """
-    패스워드 재설정 링크 시리얼라이저
+    """패스워드 재설정 Serializer
+
+    비밀번호 재설정 링크를 통해 새 비밀번호를 설정합니다.
     """
 
     password = serializers.CharField(min_length=8, write_only=True)
@@ -103,6 +162,17 @@ class SetNewPasswordSerializer(serializers.Serializer):
         fields = ["password", "confirm_password", "token", "uidb64"]
 
     def validate(self, attrs):
+        """비밀번호 일치 여부와 토큰 유효성을 검증합니다.
+
+        Args:
+            attrs (dict): 검증할 데이터
+
+        Returns:
+            dict: 검증된 데이터 (user 객체 포함)
+
+        Raises:
+            serializers.ValidationError: uidb64 누락, 비밀번호 불일치, 토큰 무효 시
+        """
         # Handle both uidb64 and uidb_64 (camel case conversion)
         uidb64 = attrs.get("uidb64") or attrs.get("uidb_64")
 
@@ -129,6 +199,14 @@ class SetNewPasswordSerializer(serializers.Serializer):
         return attrs
 
     def save(self, **kwargs):
+        """새 비밀번호를 저장합니다.
+
+        Args:
+            **kwargs: 추가 키워드 인자
+
+        Returns:
+            User: 비밀번호가 변경된 사용자 객체
+        """
         user = self.validated_data["user"]
         user.set_password(self.validated_data["password"])
         user.save()
@@ -136,6 +214,11 @@ class SetNewPasswordSerializer(serializers.Serializer):
 
 
 class UserResponseSerializer(serializers.ModelSerializer):
+    """사용자 응답 Serializer
+
+    API 응답에 사용되는 사용자 정보를 직렬화합니다.
+    """
+
     class Meta:
         model = User
         fields = [
