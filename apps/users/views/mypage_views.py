@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -23,6 +25,15 @@ class ProfileView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="프로필 조회",
+        description="인증된 사용자의 프로필 정보를 조회합니다.",
+        responses={
+            200: ProfileSerializer,
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["마이페이지"],
+    )
     def get(self, request: Any) -> APIResponse:
         """프로필 조회
 
@@ -38,6 +49,17 @@ class ProfileView(APIView):
         serializer = ProfileSerializer(user)
         return APIResponse.success(message="프로필 조회 성공", data=serializer.data)
 
+    @extend_schema(
+        summary="프로필 수정",
+        description="인증된 사용자의 프로필 정보를 수정합니다.",
+        request=ProfileSerializer,
+        responses={
+            200: ProfileSerializer,
+            400: OpenApiResponse(description="잘못된 입력 데이터"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["마이페이지"],
+    )
     def patch(self, request: Any) -> APIResponse:
         """프로필 수정
 
@@ -92,6 +114,17 @@ class PasswordChangeView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="비밀번호 변경",
+        description="마이페이지에서 현재 비밀번호 확인 후 새 비밀번호로 변경합니다. 로그인한 상태에서만 사용 가능합니다.",
+        request=PasswordChangeSerializer,
+        responses={
+            200: OpenApiResponse(description="비밀번호 변경 성공"),
+            400: OpenApiResponse(description="현재 비밀번호 불일치 또는 잘못된 입력"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["마이페이지"],
+    )
     def patch(self, request: Any) -> APIResponse:
         """비밀번호 변경 처리
 
@@ -141,6 +174,20 @@ class AccountDeleteView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="회원 탈퇴",
+        description="개인정보보호법에 따라 즉시 삭제하지 않고 90일간 보관 후 완전 삭제됩니다. 일반 가입자의 경우 비밀번호 확인이 필요합니다.",
+        request=inline_serializer(
+            name="AccountDeleteRequest",
+            fields={"password": serializers.CharField(required=False)},
+        ),
+        responses={
+            200: OpenApiResponse(description="탈퇴 성공"),
+            400: OpenApiResponse(description="비밀번호 불일치"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["마이페이지"],
+    )
     def delete(self, request: Any) -> APIResponse:
         """회원 탈퇴 처리
 
