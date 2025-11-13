@@ -45,6 +45,32 @@ class ChatMessageCreateSerializer(serializers.ModelSerializer):
             "image",
         ]
 
+    def validate_image(self, value):
+        """이미지 파일 크기 및 타입을 검증합니다.
+
+        Args:
+            value: 업로드된 이미지 파일
+
+        Returns:
+            file: 검증된 이미지 파일
+
+        Raises:
+            serializers.ValidationError: 파일 크기 초과 또는 잘못된 파일 타입
+        """
+        if value:
+            # 파일 크기 검증 (5MB = 5 * 1024 * 1024 bytes)
+            max_size = 5 * 1024 * 1024
+            if value.size > max_size:
+                raise serializers.ValidationError(
+                    f"이미지 파일 크기는 5MB를 초과할 수 없습니다. (현재: {value.size / (1024 * 1024):.2f}MB)"
+                )
+
+            # Content-Type 검증 (추가 보안)
+            if not value.content_type.startswith("image/"):
+                raise serializers.ValidationError("이미지 파일만 업로드 가능합니다.")
+
+        return value
+
     def validate(self, attrs):
         """메시지 또는 이미지 중 최소 하나가 있는지 검증합니다.
 
