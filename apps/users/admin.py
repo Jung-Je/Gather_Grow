@@ -10,7 +10,14 @@ class UserAdmin(BaseUserAdmin):
     """사용자 모델 관리자 페이지"""
 
     def get_queryset(self, request):
-        """어드민에서는 탈퇴한 사용자도 모두 표시"""
+        """어드민에서는 탈퇴한 사용자도 모두 표시합니다.
+
+        Args:
+            request (HttpRequest): HTTP 요청 객체
+
+        Returns:
+            QuerySet: 탈퇴한 사용자를 포함한 모든 사용자 QuerySet
+        """
         return super().get_queryset(request).with_deleted()
 
     # 목록 페이지 설정
@@ -110,7 +117,14 @@ class UserAdmin(BaseUserAdmin):
     )
 
     def profile_image_preview(self, obj):
-        """프로필 이미지 미리보기"""
+        """프로필 이미지 미리보기를 HTML로 반환합니다.
+
+        Args:
+            obj (User): 사용자 객체
+
+        Returns:
+            str: 이미지 HTML 태그 또는 "이미지 없음" 문자열
+        """
         if obj.profile_image:
             return format_html(
                 '<img src="{}" width="100" height="100" style="object-fit: cover; border-radius: 50%;" />',

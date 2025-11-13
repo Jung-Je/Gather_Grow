@@ -1,0 +1,123 @@
+from rest_framework import serializers
+
+from apps.chat.models import ChatMessage
+
+
+class ChatMessageListSerializer(serializers.ModelSerializer):
+    """채팅 메시지 목록 조회용 Serializer
+
+    채팅방 메시지 목록을 조회할 때 사용합니다.
+    """
+
+    username = serializers.CharField(source="user.username", read_only=True)
+    user_profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
+    has_image = serializers.BooleanField(read_only=True)
+    has_text = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ChatMessage
+        fields = [
+            "id",
+            "user",
+            "username",
+            "user_profile_image",
+            "message",
+            "image",
+            "has_image",
+            "has_text",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "user", "created_at", "updated_at"]
+
+
+class ChatMessageCreateSerializer(serializers.ModelSerializer):
+    """채팅 메시지 생성용 Serializer
+
+    텍스트 메시지와 이미지를 함께 보낼 수 있습니다.
+    """
+
+    class Meta:
+        model = ChatMessage
+        fields = [
+            "gathering",
+            "message",
+            "image",
+        ]
+
+    def validate_image(self, value):
+        """이미지 파일 크기 및 타입을 검증합니다.
+
+        Args:
+            value: 업로드된 이미지 파일
+
+        Returns:
+            file: 검증된 이미지 파일
+
+        Raises:
+            serializers.ValidationError: 파일 크기 초과 또는 잘못된 파일 타입
+        """
+        if value:
+            # 파일 크기 검증 (5MB = 5 * 1024 * 1024 bytes)
+            max_size = 5 * 1024 * 1024
+            if value.size > max_size:
+                raise serializers.ValidationError(
+                    f"이미지 파일 크기는 5MB를 초과할 수 없습니다. (현재: {value.size / (1024 * 1024):.2f}MB)"
+                )
+
+            # Content-Type 검증 (추가 보안)
+            if not value.content_type.startswith("image/"):
+                raise serializers.ValidationError("이미지 파일만 업로드 가능합니다.")
+
+        return value
+
+    def validate(self, attrs):
+        """메시지 또는 이미지 중 최소 하나가 있는지 검증합니다.
+
+        Args:
+            attrs (dict): 검증할 필드 데이터
+
+        Returns:
+            dict: 검증된 필드 데이터
+
+        Raises:
+            serializers.ValidationError: 메시지와 이미지가 모두 없는 경우
+        """
+        message = attrs.get("message")
+        image = attrs.get("image")
+
+        if not message and not image:
+            raise serializers.ValidationError("메시지 내용 또는 이미지 중 최소 하나는 입력해야 합니다.")
+
+        return attrs
+
+
+class ChatMessageDetailSerializer(serializers.ModelSerializer):
+    """채팅 메시지 상세 조회용 Serializer
+
+    메시지의 모든 정보를 포함합니다.
+    """
+
+    username = serializers.CharField(source="user.username", read_only=True)
+    user_profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
+    gathering_title = serializers.CharField(source="gathering.title", read_only=True)
+    has_image = serializers.BooleanField(read_only=True)
+    has_text = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = ChatMessage
+        fields = [
+            "id",
+            "gathering",
+            "gathering_title",
+            "user",
+            "username",
+            "user_profile_image",
+            "message",
+            "image",
+            "has_image",
+            "has_text",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "user", "gathering", "created_at", "updated_at"]

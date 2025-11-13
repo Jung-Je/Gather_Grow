@@ -1,5 +1,6 @@
 from typing import Any
 
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.views import APIView
 
@@ -19,6 +20,23 @@ class CategoryListView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="카테고리 목록 조회",
+        description="모든 활성화된 카테고리를 조회합니다. hierarchical=true로 계층 구조 조회 가능합니다.",
+        parameters=[
+            OpenApiParameter(
+                name="hierarchical",
+                type=bool,
+                location=OpenApiParameter.QUERY,
+                description="계층 구조로 반환 여부 (기본값: false)",
+                required=False,
+            )
+        ],
+        responses={
+            200: CategoryListSerializer(many=True),
+        },
+        tags=["카테고리"],
+    )
     def get(self, request: Any) -> APIResponse:
         """카테고리 목록 조회
 
@@ -47,6 +65,15 @@ class CategoryDetailView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="카테고리 상세 조회",
+        description="카테고리의 상세 정보와 통계를 조회합니다.",
+        responses={
+            200: CategorySerializer,
+            404: OpenApiResponse(description="존재하지 않는 카테고리"),
+        },
+        tags=["카테고리"],
+    )
     def get(self, request: Any, category_id: int) -> APIResponse:
         """카테고리 상세 정보 및 통계 조회
 
@@ -71,6 +98,17 @@ class CategoryManageView(APIView):
 
     permission_classes = [IsAdminUser]
 
+    @extend_schema(
+        summary="카테고리 생성 (관리자)",
+        description="새로운 카테고리를 생성합니다. 관리자만 접근 가능합니다.",
+        request=CategorySerializer,
+        responses={
+            201: CategorySerializer,
+            400: OpenApiResponse(description="잘못된 입력 데이터"),
+            403: OpenApiResponse(description="관리자 권한 필요"),
+        },
+        tags=["카테고리"],
+    )
     def post(self, request: Any) -> APIResponse:
         """카테고리 생성
 
@@ -105,6 +143,18 @@ class CategoryManageView(APIView):
         except Exception as e:
             return APIResponse.from_exception(e, message="카테고리 생성에 실패했습니다.")
 
+    @extend_schema(
+        summary="카테고리 수정 (관리자)",
+        description="카테고리 정보를 수정합니다. 관리자만 접근 가능합니다.",
+        request=CategorySerializer,
+        responses={
+            200: CategorySerializer,
+            400: OpenApiResponse(description="잘못된 입력 데이터"),
+            403: OpenApiResponse(description="관리자 권한 필요"),
+            404: OpenApiResponse(description="존재하지 않는 카테고리"),
+        },
+        tags=["카테고리"],
+    )
     def patch(self, request: Any, category_id: int) -> APIResponse:
         """카테고리 수정
 
@@ -134,6 +184,17 @@ class CategoryManageView(APIView):
         except Exception as e:
             return APIResponse.from_exception(e, message="카테고리 수정에 실패했습니다.")
 
+    @extend_schema(
+        summary="카테고리 비활성화 (관리자)",
+        description="카테고리를 비활성화합니다. 관리자만 접근 가능합니다. 진행 중인 모임이 있는 경우 비활성화할 수 없습니다.",
+        responses={
+            200: OpenApiResponse(description="카테고리 비활성화 성공"),
+            400: OpenApiResponse(description="진행 중인 모임이 있는 경우"),
+            403: OpenApiResponse(description="관리자 권한 필요"),
+            404: OpenApiResponse(description="존재하지 않는 카테고리"),
+        },
+        tags=["카테고리"],
+    )
     def delete(self, request: Any, category_id: int) -> APIResponse:
         """카테고리 비활성화
 
@@ -161,6 +222,14 @@ class ParentCategoryListView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="최상위 카테고리 목록 조회",
+        description="부모가 없는 최상위 카테고리 목록을 조회합니다.",
+        responses={
+            200: CategoryListSerializer(many=True),
+        },
+        tags=["카테고리"],
+    )
     def get(self, request: Any) -> APIResponse:
         """최상위(부모) 카테고리만 조회
 
@@ -178,6 +247,14 @@ class ChildCategoryListView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="자식 카테고리 목록 조회",
+        description="특정 부모 카테고리의 하위 카테고리 목록을 조회합니다.",
+        responses={
+            200: CategoryListSerializer(many=True),
+        },
+        tags=["카테고리"],
+    )
     def get(self, request: Any, parent_id: int) -> APIResponse:
         """특정 부모의 자식 카테고리 조회
 

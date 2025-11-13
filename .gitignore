@@ -397,4 +397,7 @@ pyrightconfig.json
 
 *.rdb
 
+# Test files
+test_chat.html
+
 # End of https://www.toptal.com/developers/gitignore/api/python,django,pycharm,redis,git
