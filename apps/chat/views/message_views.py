@@ -1,6 +1,7 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.chat.serializers.message_serializer import (
@@ -10,6 +11,15 @@ from apps.chat.serializers.message_serializer import (
 from apps.chat.services.message_service import ChatMessageService
 from apps.common.responses import APIResponse
 from apps.gatherings.services.member_service import MemberService
+
+
+class ChatMessageRateThrottle(UserRateThrottle):
+    """채팅 메시지 전송 속도 제한
+
+    분당 60개 메시지로 제한하여 스팸 방지
+    """
+
+    rate = "60/min"
 
 
 class ChatMessagePagination(PageNumberPagination):
@@ -24,6 +34,7 @@ class ChatMessageListView(APIView):
     """채팅 메시지 목록 조회 및 생성 API"""
 
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ChatMessageRateThrottle]
 
     @extend_schema(
         summary="채팅 메시지 목록 조회",
@@ -95,7 +106,16 @@ class ChatMessageListView(APIView):
 
     @extend_schema(
         summary="채팅 메시지 전송",
-        description="모임에 채팅 메시지를 전송합니다. 텍스트 또는 이미지 중 최소 하나는 필수입니다. 승인된 모임 멤버만 전송 가능합니다.",
+        description="""모임에 채팅 메시지를 전송합니다.
+
+**요구사항:**
+- 텍스트 또는 이미지 중 최소 하나는 필수입니다
+- 승인된 모임 멤버만 전송 가능합니다
+- 이미지는 JPG, JPEG, PNG, GIF, WebP 형식만 지원 (최대 5MB)
+
+**Rate Limiting:**
+- 분당 최대 60개 메시지 전송 가능
+- 제한 초과 시 429 Too Many Requests 응답""",
         parameters=[
             OpenApiParameter(
                 name="gathering_id",
@@ -107,9 +127,10 @@ class ChatMessageListView(APIView):
         request=ChatMessageCreateSerializer,
         responses={
             201: ChatMessageListSerializer,
-            400: {"description": "잘못된 입력 (텍스트/이미지 중 하나는 필수)"},
+            400: {"description": "잘못된 입력 (텍스트/이미지 중 하나는 필수, 또는 파일 크기/형식 오류)"},
             403: {"description": "권한 없음 (모임 멤버가 아님)"},
             404: {"description": "존재하지 않는 모임"},
+            429: {"description": "요청 횟수 초과 (분당 60개 제한)"},
         },
         tags=["채팅"],
     )
