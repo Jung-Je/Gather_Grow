@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 from apps.common.models import BaseModel
@@ -29,6 +30,13 @@ class ChatMessage(BaseModel):
         blank=True,
         null=True,
         verbose_name="이미지",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["jpg", "jpeg", "png", "gif", "webp"],
+                message="지원하지 않는 이미지 형식입니다. jpg, jpeg, png, gif, webp 형식만 업로드 가능합니다.",
+            )
+        ],
+        help_text="지원 형식: JPG, JPEG, PNG, GIF, WebP (최대 5MB)",
     )
 
     class Meta:
