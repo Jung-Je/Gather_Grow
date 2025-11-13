@@ -1,5 +1,12 @@
 from typing import Any
 
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
+from rest_framework import serializers
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
@@ -27,6 +34,30 @@ class GatheringListView(APIView):
 
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+    @extend_schema(
+        summary="모임 목록 조회",
+        description="모임 목록을 조회합니다. 다양한 필터링 옵션을 지원합니다.",
+        parameters=[
+            OpenApiParameter(name="type", type=str, description="모임 유형 (study/project)"),
+            OpenApiParameter(name="category", type=int, description="카테고리 ID"),
+            OpenApiParameter(
+                name="status", type=str, description="모집 상태 (recruiting/recruitment_complete/in_progress/finished)"
+            ),
+            OpenApiParameter(name="study_type", type=str, description="진행 방식 (online/offline/mixed)"),
+            OpenApiParameter(
+                name="target_level", type=str, description="대상 수준 (beginner/intermediate/advanced/all)"
+            ),
+            OpenApiParameter(name="is_recruiting", type=bool, description="모집 중 여부"),
+            OpenApiParameter(name="search", type=str, description="검색어 (제목/설명)"),
+            OpenApiParameter(name="page", type=int, description="페이지 번호 (기본값: 1)"),
+            OpenApiParameter(name="page_size", type=int, description="페이지 크기 (기본값: 20, 최대: 100)"),
+        ],
+        responses={
+            200: GatheringListSerializer(many=True),
+            400: OpenApiResponse(description="잘못된 필터 값"),
+        },
+        tags=["모임"],
+    )
     def get(self, request: Any) -> APIResponse:
         """모임 목록 조회 (필터링 지원)
 
@@ -114,6 +145,17 @@ class GatheringListView(APIView):
             },
         )
 
+    @extend_schema(
+        summary="모임 생성",
+        description="새로운 모임을 생성합니다. 인증이 필요합니다.",
+        request=GatheringCreateSerializer,
+        responses={
+            201: GatheringDetailSerializer,
+            400: OpenApiResponse(description="잘못된 입력 데이터"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["모임"],
+    )
     def post(self, request: Any) -> APIResponse:
         """모임 생성
 
@@ -162,6 +204,15 @@ class GatheringDetailView(APIView):
 
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+    @extend_schema(
+        summary="모임 상세 조회",
+        description="특정 모임의 상세 정보를 조회합니다.",
+        responses={
+            200: GatheringDetailSerializer,
+            404: OpenApiResponse(description="존재하지 않는 모임"),
+        },
+        tags=["모임"],
+    )
     def get(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 상세 조회
 
@@ -181,6 +232,18 @@ class GatheringDetailView(APIView):
         serializer = GatheringDetailSerializer(gathering)
         return APIResponse.success(message="모임 조회 성공", data=serializer.data)
 
+    @extend_schema(
+        summary="모임 수정",
+        description="모임 정보를 수정합니다. 모임장만 수정할 수 있습니다.",
+        request=GatheringUpdateSerializer,
+        responses={
+            200: GatheringDetailSerializer,
+            400: OpenApiResponse(description="잘못된 입력 또는 권한 없음"),
+            401: OpenApiResponse(description="인증 필요"),
+            404: OpenApiResponse(description="존재하지 않는 모임"),
+        },
+        tags=["모임"],
+    )
     def patch(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 수정
 
@@ -218,6 +281,17 @@ class GatheringDetailView(APIView):
         except Exception as e:
             return APIResponse.from_exception(e, message="모임 수정에 실패했습니다.")
 
+    @extend_schema(
+        summary="모임 삭제",
+        description="모임을 삭제합니다. 모임장만 삭제할 수 있습니다.",
+        responses={
+            200: OpenApiResponse(description="모임 삭제 성공"),
+            400: OpenApiResponse(description="권한 없음 또는 삭제 불가 상태"),
+            401: OpenApiResponse(description="인증 필요"),
+            404: OpenApiResponse(description="존재하지 않는 모임"),
+        },
+        tags=["모임"],
+    )
     def delete(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 삭제
 
@@ -247,6 +321,21 @@ class GatheringStatusView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="모임 상태 변경",
+        description="모임의 상태를 변경합니다. 모임장만 변경할 수 있습니다.",
+        request=inline_serializer(
+            name="GatheringStatusChangeRequest",
+            fields={"status": serializers.CharField()},
+        ),
+        responses={
+            200: GatheringDetailSerializer,
+            400: OpenApiResponse(description="잘못된 상태 또는 권한 없음"),
+            401: OpenApiResponse(description="인증 필요"),
+            404: OpenApiResponse(description="존재하지 않는 모임"),
+        },
+        tags=["모임"],
+    )
     def patch(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 상태 변경
 
@@ -286,6 +375,20 @@ class MyGatheringListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="내가 참여한 모임 목록 조회",
+        description="내가 참여 중인 모임 목록을 조회합니다. 역할별로 필터링할 수 있습니다.",
+        parameters=[
+            OpenApiParameter(name="role", type=str, description="역할 필터 (leader/participant)"),
+            OpenApiParameter(name="page", type=int, description="페이지 번호 (기본값: 1)"),
+            OpenApiParameter(name="page_size", type=int, description="페이지 크기 (기본값: 20, 최대: 100)"),
+        ],
+        responses={
+            200: GatheringListSerializer(many=True),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["모임"],
+    )
     def get(self, request: Any) -> APIResponse:
         """내가 참여한 모임 목록 조회
 
@@ -323,6 +426,15 @@ class GatheringStatisticsView(APIView):
 
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+    @extend_schema(
+        summary="모임 통계 조회",
+        description="모임의 통계 정보를 조회합니다. 참여 인원, 활동 통계 등을 포함합니다.",
+        responses={
+            200: OpenApiResponse(description="모임 통계 정보"),
+            404: OpenApiResponse(description="존재하지 않는 모임"),
+        },
+        tags=["모임"],
+    )
     def get(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 통계 조회
 

@@ -121,7 +121,17 @@ class GatheringCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        """모임 유형에 따른 필수 필드 검증"""
+        """모임 유형과 진행 방식에 따른 필수 필드를 검증합니다.
+
+        Args:
+            attrs (dict): 검증할 데이터
+
+        Returns:
+            dict: 검증된 데이터
+
+        Raises:
+            serializers.ValidationError: 필수 필드 누락 또는 날짜 유효성 오류
+        """
         gathering_type = attrs.get("type")
 
         # 프로젝트인 경우 필수 기술 스택 필수
@@ -152,7 +162,17 @@ class GatheringCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_max_members(self, value):
-        """모집 인원 유효성 검증"""
+        """모집 인원 유효성을 검증합니다.
+
+        Args:
+            value (int): 모집 인원 수
+
+        Returns:
+            int: 검증된 모집 인원 수
+
+        Raises:
+            serializers.ValidationError: 인원이 2명 미만 또는 100명 초과인 경우
+        """
         if value < 2:
             raise serializers.ValidationError("모집 인원은 최소 2명 이상이어야 합니다.")
         if value > 100:

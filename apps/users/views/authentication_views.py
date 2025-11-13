@@ -2,10 +2,17 @@ import logging
 from typing import Any
 
 from django.conf import settings
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.common.responses import APIResponse
+from apps.users.serializers.authenticate_serializer import (
+    SetNewPasswordSerializer,
+    UserLoginSerializer,
+    UserResponseSerializer,
+    UserSignUpSerializer,
+)
 from apps.users.services.decorators import login_rate_limit, password_reset_rate_limit
 from apps.users.services.services import AuthenticationService
 from apps.users.services.validators import PasswordValidator
@@ -22,6 +29,17 @@ class UserSignUpView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="회원가입",
+        description="새로운 사용자를 등록합니다. 이메일 인증이 완료된 사용자만 회원가입이 가능합니다.",
+        request=UserSignUpSerializer,
+        responses={
+            201: UserResponseSerializer,
+            400: OpenApiResponse(description="잘못된 입력 데이터 또는 이메일 중복"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["인증"],
+    )
     def post(self, request: Any) -> APIResponse:
         """회원가입 처리
 
@@ -58,6 +76,18 @@ class UserLoginView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="로그인",
+        description="이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다. 토큰은 HttpOnly 쿠키로 설정됩니다.",
+        request=UserLoginSerializer,
+        responses={
+            200: UserResponseSerializer,
+            400: OpenApiResponse(description="잘못된 이메일 또는 비밀번호"),
+            429: OpenApiResponse(description="로그인 시도 횟수 초과"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["인증"],
+    )
     @login_rate_limit
     def post(self, request: Any) -> APIResponse:
         """로그인 처리
@@ -112,6 +142,17 @@ class UserRefreshTokenView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="토큰 갱신",
+        description="리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다. 쿠키에서 refresh_token을 읽습니다.",
+        request=None,
+        responses={
+            200: OpenApiResponse(description="토큰 갱신 성공, 새로운 토큰들을 쿠키로 설정"),
+            400: OpenApiResponse(description="리프레시 토큰 없음 또는 만료"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["인증"],
+    )
     def post(self, request: Any) -> APIResponse:
         """토큰 갱신 처리
 
@@ -167,6 +208,17 @@ class UserLogoutView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="로그아웃",
+        description="로그아웃하고 토큰을 무효화합니다. 쿠키에서 토큰을 삭제합니다.",
+        request=None,
+        responses={
+            200: OpenApiResponse(description="로그아웃 성공, 쿠키 삭제"),
+            400: OpenApiResponse(description="리프레시 토큰 없음"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["인증"],
+    )
     def post(self, request: Any) -> APIResponse:
         """로그아웃 처리
 
@@ -209,6 +261,18 @@ class PasswordResetView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="비밀번호 재설정",
+        description="이메일 인증 후 새 비밀번호를 설정합니다.",
+        request=SetNewPasswordSerializer,
+        responses={
+            200: OpenApiResponse(description="비밀번호 재설정 성공"),
+            400: OpenApiResponse(description="잘못된 입력 또는 인증 실패"),
+            429: OpenApiResponse(description="재설정 시도 횟수 초과"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["인증"],
+    )
     @password_reset_rate_limit
     def post(self, request: Any) -> APIResponse:
         """이메일 인증 후 비밀번호 재설정

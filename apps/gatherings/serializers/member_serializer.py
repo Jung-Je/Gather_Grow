@@ -40,7 +40,17 @@ class MemberJoinSerializer(serializers.Serializer):
     gathering = serializers.IntegerField(required=True)
 
     def validate_gathering(self, value):
-        """모임 가입 가능 여부 검증"""
+        """모임 가입 가능 여부를 검증합니다.
+
+        Args:
+            value (int): 모임 ID
+
+        Returns:
+            int: 검증된 모임 ID
+
+        Raises:
+            serializers.ValidationError: 모임이 존재하지 않거나 가입 불가능한 경우
+        """
         from apps.gatherings.models import Gathering
 
         user = self.context["request"].user

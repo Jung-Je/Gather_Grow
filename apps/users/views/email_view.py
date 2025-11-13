@@ -3,6 +3,8 @@ from typing import Any
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
@@ -23,6 +25,21 @@ class SignUpEmailCodeView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="회원가입 인증번호 발송",
+        description="회원가입을 위한 6자리 인증번호를 이메일로 발송합니다. 인증번호는 5분간 유효하며, 30초에 한 번만 재전송 가능합니다.",
+        request=inline_serializer(
+            name="SignUpEmailRequest",
+            fields={"email": serializers.EmailField()},
+        ),
+        responses={
+            200: OpenApiResponse(description="인증번호 발송 성공"),
+            400: OpenApiResponse(description="이메일 주소 누락 또는 이미 존재하는 이메일"),
+            429: OpenApiResponse(description="30초 재전송 제한 또는 요청 횟수 초과"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["이메일 인증"],
+    )
     @email_rate_limit
     def post(self, request: Any) -> APIResponse:
         """회원가입 인증번호 발송 처리
@@ -67,6 +84,23 @@ class VerifySignUpCodeView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="회원가입 인증번호 확인",
+        description="회원가입을 위해 발송된 6자리 인증번호를 확인합니다. 인증 성공 시 5분간 회원가입 가능 상태가 유지됩니다.",
+        request=inline_serializer(
+            name="VerifySignUpCodeRequest",
+            fields={
+                "email": serializers.EmailField(),
+                "code": serializers.CharField(max_length=6),
+            },
+        ),
+        responses={
+            200: OpenApiResponse(description="인증 성공"),
+            400: OpenApiResponse(description="이메일/코드 누락 또는 코드 불일치"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["이메일 인증"],
+    )
     def post(self, request: Any) -> APIResponse:
         """회원가입 인증번호 확인 처리
 
@@ -107,6 +141,20 @@ class PasswordResetEmailCodeView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="비밀번호 찾기 인증번호 발송",
+        description="비밀번호 재설정을 위한 6자리 인증번호를 이메일로 발송합니다. 보안상 이메일 존재 여부와 무관하게 동일한 응답을 반환합니다.",
+        request=inline_serializer(
+            name="PasswordResetEmailRequest",
+            fields={"email": serializers.EmailField()},
+        ),
+        responses={
+            200: OpenApiResponse(description="인증번호 발송 완료 (보안상 이메일 존재 여부와 무관)"),
+            400: OpenApiResponse(description="이메일 주소 누락"),
+            429: OpenApiResponse(description="30초 재전송 제한 또는 요청 횟수 초과"),
+        },
+        tags=["이메일 인증"],
+    )
     @email_rate_limit
     def post(self, request: Any) -> APIResponse:
         """비밀번호 찾기 인증번호 발송 처리
@@ -155,6 +203,22 @@ class VerifyPasswordResetCodeView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="비밀번호 찾기 인증번호 확인",
+        description="비밀번호 재설정을 위해 발송된 6자리 인증번호를 확인합니다. 인증 성공 시 5분간 비밀번호 재설정 가능 상태가 됩니다.",
+        request=inline_serializer(
+            name="VerifyPasswordResetCodeRequest",
+            fields={
+                "email": serializers.EmailField(),
+                "code": serializers.CharField(max_length=6),
+            },
+        ),
+        responses={
+            200: OpenApiResponse(description="인증 성공"),
+            400: OpenApiResponse(description="잘못된 인증번호 또는 만료"),
+        },
+        tags=["이메일 인증"],
+    )
     def post(self, request: Any) -> APIResponse:
         """비밀번호 찾기 인증번호 확인 처리
 

@@ -5,11 +5,14 @@ from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.naver.views import NaverOAuth2Adapter
 from dj_rest_auth.registration.views import SocialLoginView
 from django.conf import settings
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.request import Request
 
 from apps.common.responses import APIResponse
 from apps.users.adapters.kakao_adapter import CustomKakaoOAuth2Adapter
 from apps.users.adapters.oauth_client import CustomOAuth2Client
+from apps.users.serializers.authenticate_serializer import UserResponseSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +166,20 @@ class NaverLoginView(BaseSocialLoginView):
     client_class = CustomOAuth2Client
     callback_url = settings.SOCIAL_AUTH_CONFIG["NAVER"]["REDIRECT_URI"]
 
+    @extend_schema(
+        summary="네이버 로그인",
+        description="네이버 OAuth2 인증을 통해 로그인합니다. 네이버에서 받은 액세스 토큰을 전달하면 자동으로 회원가입 또는 로그인됩니다.",
+        request=inline_serializer(
+            name="NaverLoginRequest",
+            fields={"access_token": serializers.CharField()},
+        ),
+        responses={
+            200: UserResponseSerializer,
+            400: OpenApiResponse(description="잘못된 토큰 또는 인증 실패"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["소셜 로그인"],
+    )
     def post(self, request, *args, **kwargs):
         """네이버 로그인 처리
 
@@ -189,6 +206,23 @@ class KakaoLoginView(BaseSocialLoginView):
     client_class = CustomOAuth2Client
     callback_url = settings.SOCIAL_AUTH_CONFIG["KAKAO"]["REDIRECT_URI"]
 
+    @extend_schema(
+        summary="카카오 로그인",
+        description="카카오 OAuth2 인증을 통해 로그인합니다. 카카오에서 받은 인증 코드 또는 액세스 토큰을 전달하면 자동으로 회원가입 또는 로그인됩니다.",
+        request=inline_serializer(
+            name="KakaoLoginRequest",
+            fields={
+                "code": serializers.CharField(required=False),
+                "access_token": serializers.CharField(required=False),
+            },
+        ),
+        responses={
+            200: UserResponseSerializer,
+            400: OpenApiResponse(description="잘못된 토큰 또는 인증 실패"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["소셜 로그인"],
+    )
     def post(self, request, *args, **kwargs):
         """카카오 로그인 처리
 
@@ -231,6 +265,23 @@ class GoogleLoginView(BaseSocialLoginView):
     client_class = CustomOAuth2Client
     callback_url = settings.SOCIAL_AUTH_CONFIG["GOOGLE"]["REDIRECT_URI"]
 
+    @extend_schema(
+        summary="구글 로그인",
+        description="구글 OAuth2 인증을 통해 로그인합니다. 구글에서 받은 인증 코드 또는 액세스 토큰을 전달하면 자동으로 회원가입 또는 로그인됩니다.",
+        request=inline_serializer(
+            name="GoogleLoginRequest",
+            fields={
+                "code": serializers.CharField(required=False),
+                "access_token": serializers.CharField(required=False),
+            },
+        ),
+        responses={
+            200: UserResponseSerializer,
+            400: OpenApiResponse(description="잘못된 토큰 또는 인증 실패"),
+            500: OpenApiResponse(description="서버 오류"),
+        },
+        tags=["소셜 로그인"],
+    )
     def post(self, request, *args, **kwargs):
         """구글 로그인 처리
 

@@ -1,5 +1,6 @@
 from typing import Any
 
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.throttling import UserRateThrottle
@@ -31,6 +32,19 @@ class GatheringMemberListView(APIView):
 
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+    @extend_schema(
+        summary="모임 멤버 목록 조회",
+        description="모임의 승인된 멤버 목록을 조회합니다. 역할별로 필터링할 수 있습니다.",
+        parameters=[
+            OpenApiParameter(name="role", type=str, description="역할 필터 (leader/participant)"),
+            OpenApiParameter(name="page", type=int, description="페이지 번호 (기본값: 1)"),
+            OpenApiParameter(name="page_size", type=int, description="페이지 크기 (기본값: 50, 최대: 200)"),
+        ],
+        responses={
+            200: GatheringMemberSerializer(many=True),
+        },
+        tags=["모임 멤버"],
+    )
     def get(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 멤버 목록 조회 (승인된 멤버만 공개)
 
@@ -74,6 +88,17 @@ class MemberJoinView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="모임 가입 신청",
+        description="모임 가입을 신청합니다. 승인 후 모임에 참여할 수 있습니다.",
+        request=MemberJoinSerializer,
+        responses={
+            201: GatheringMemberSerializer,
+            400: OpenApiResponse(description="가입 불가 조건 (정원 초과, 중복 신청 등)"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["모임 멤버"],
+    )
     def post(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 가입 신청
 
@@ -108,6 +133,18 @@ class MemberApprovalView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="멤버 승인/거절 (모임장)",
+        description="가입 신청한 멤버를 승인하거나 거절합니다. 모임장만 사용할 수 있습니다.",
+        request=MemberApprovalSerializer,
+        responses={
+            200: GatheringMemberSerializer,
+            400: OpenApiResponse(description="권한 없음 또는 잘못된 요청"),
+            401: OpenApiResponse(description="인증 필요"),
+            404: OpenApiResponse(description="존재하지 않는 멤버"),
+        },
+        tags=["모임 멤버"],
+    )
     def patch(self, request: Any, member_id: int) -> APIResponse:
         """멤버 승인 또는 거절
 
@@ -155,6 +192,17 @@ class MemberLeaveView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="모임 탈퇴",
+        description="모임에서 탈퇴합니다. 모임장은 탈퇴할 수 없습니다.",
+        request=MemberLeaveSerializer,
+        responses={
+            200: OpenApiResponse(description="탈퇴 성공"),
+            400: OpenApiResponse(description="탈퇴 불가 조건 (모임장, 승인되지 않은 멤버 등)"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["모임 멤버"],
+    )
     def delete(self, request: Any, gathering_id: int) -> APIResponse:
         """모임 탈퇴
 
@@ -187,6 +235,17 @@ class MemberCancelJoinView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="가입 신청 취소",
+        description="대기 중인 가입 신청을 취소합니다.",
+        request=MemberCancelSerializer,
+        responses={
+            200: OpenApiResponse(description="취소 성공"),
+            400: OpenApiResponse(description="대기 중인 신청 없음"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["모임 멤버"],
+    )
     def delete(self, request: Any, gathering_id: int) -> APIResponse:
         """가입 신청 취소 (대기 중인 상태만)
 
@@ -219,6 +278,17 @@ class MemberRemoveView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="멤버 강제 탈퇴 (모임장)",
+        description="모임 멤버를 강제로 탈퇴시킵니다. 모임장만 사용할 수 있습니다.",
+        request=MemberRemoveSerializer,
+        responses={
+            200: OpenApiResponse(description="강제 탈퇴 성공"),
+            400: OpenApiResponse(description="권한 없음 또는 강제 탈퇴 불가 (모임장 강퇴 불가 등)"),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["모임 멤버"],
+    )
     def delete(self, request: Any, gathering_id: int, member_id: int) -> APIResponse:
         """멤버 강제 탈퇴
 
@@ -254,6 +324,20 @@ class PendingMemberListView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="승인 대기 멤버 목록 조회 (모임장)",
+        description="승인 대기 중인 멤버 목록을 조회합니다. 모임장만 사용할 수 있습니다.",
+        parameters=[
+            OpenApiParameter(name="page", type=int, description="페이지 번호 (기본값: 1)"),
+            OpenApiParameter(name="page_size", type=int, description="페이지 크기 (기본값: 50, 최대: 200)"),
+        ],
+        responses={
+            200: GatheringMemberSerializer(many=True),
+            401: OpenApiResponse(description="인증 필요"),
+            403: OpenApiResponse(description="권한 없음 (모임장 아님)"),
+        },
+        tags=["모임 멤버"],
+    )
     def get(self, request: Any, gathering_id: int) -> APIResponse:
         """승인 대기 중인 멤버 목록 조회 (모임장만 가능)
 
@@ -298,6 +382,17 @@ class MemberStatusCheckView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        summary="모임 참여 상태 확인",
+        description="현재 사용자의 모임 참여 상태를 확인합니다. 가입 여부, 승인 상태, 모임장 여부 등을 반환합니다.",
+        responses={
+            200: OpenApiResponse(
+                description="참여 상태 정보 (status: pending/approved/rejected/not_member, is_leader: boolean)"
+            ),
+            401: OpenApiResponse(description="인증 필요"),
+        },
+        tags=["모임 멤버"],
+    )
     def get(self, request: Any, gathering_id: int) -> APIResponse:
         """현재 사용자의 모임 참여 상태 확인
 
