@@ -19,6 +19,7 @@ from apps.communitys.serializers.question_serializer import (
     QuestionListSerializer,
     QuestionUpdateSerializer,
 )
+from apps.communitys.services.question_service import QuestionService
 
 
 class QuestionPagination(PageNumberPagination):
@@ -177,17 +178,16 @@ class QuestionDetailView(APIView):
                 - 200: 질문 상세 정보
                 - 404: 존재하지 않는 질문
         """
-        try:
-            question = Question.objects.select_related("category", "user").get(id=question_id)
-
-            # 조회수 증가
-            question.increment_views()
-
-            serializer = QuestionDetailSerializer(question)
-            return APIResponse.success(message="질문 조회 성공", data=serializer.data)
-
-        except Question.DoesNotExist:
+        # 서비스로 질문 조회 및 검증
+        question = QuestionService.get_question_with_validation(question_id)
+        if not question:
             return APIResponse.not_found(message="존재하지 않는 질문입니다.")
+
+        # 조회수 증가
+        question.increment_views()
+
+        serializer = QuestionDetailSerializer(question)
+        return APIResponse.success(message="질문 조회 성공", data=serializer.data)
 
     @extend_schema(
         summary="질문 수정",
@@ -216,11 +216,16 @@ class QuestionDetailView(APIView):
                 - 404: 존재하지 않는 질문
         """
         try:
-            question = Question.objects.select_related("user").get(id=question_id)
+            # 서비스로 질문 조회 및 검증
+            question = QuestionService.get_question_with_validation(question_id)
+            if not question:
+                return APIResponse.not_found(message="존재하지 않는 질문입니다.")
 
-            # 작성자만 수정 가능
-            if question.user != request.user:
-                return APIResponse.forbidden(message="질문 작성자만 수정할 수 있습니다.")
+            # 서비스로 권한 확인
+            try:
+                QuestionService.check_question_permission(question, request.user)
+            except PermissionError as e:
+                return APIResponse.forbidden(message=str(e))
 
             # instance를 전달하여 serializer 생성
             serializer = QuestionUpdateSerializer(instance=question, data=request.data, partial=True)
@@ -234,8 +239,6 @@ class QuestionDetailView(APIView):
             result_serializer = QuestionDetailSerializer(question)
             return APIResponse.success(message="질문이 수정되었습니다.", data=result_serializer.data)
 
-        except Question.DoesNotExist:
-            return APIResponse.not_found(message="존재하지 않는 질문입니다.")
         except Exception as e:
             return APIResponse.from_exception(e, message="질문 수정에 실패했습니다.")
 
@@ -265,21 +268,24 @@ class QuestionDetailView(APIView):
                 - 404: 존재하지 않는 질문
         """
         try:
-            question = Question.objects.select_related("user").get(id=question_id)
+            # 서비스로 질문 조회 및 검증
+            question = QuestionService.get_question_with_validation(question_id)
+            if not question:
+                return APIResponse.not_found(message="존재하지 않는 질문입니다.")
 
-            # 작성자만 삭제 가능
-            if question.user != request.user:
-                return APIResponse.forbidden(message="질문 작성자만 삭제할 수 있습니다.")
+            # 서비스로 권한 확인
+            try:
+                QuestionService.check_question_permission(question, request.user)
+            except PermissionError as e:
+                return APIResponse.forbidden(message=str(e))
 
-            # 답변이 달린 질문은 삭제 불가
-            if question.answer_count > 0:
+            # 서비스로 수정/삭제 가능 여부 확인
+            if not QuestionService.can_modify_question(question):
                 return APIResponse.bad_request(message="답변이 달린 질문은 삭제할 수 없습니다.")
 
             question.delete()
             return APIResponse.success(message="질문이 삭제되었습니다.")
 
-        except Question.DoesNotExist:
-            return APIResponse.not_found(message="존재하지 않는 질문입니다.")
         except Exception as e:
             return APIResponse.from_exception(e, message="질문 삭제에 실패했습니다.")
 
@@ -315,11 +321,16 @@ class QuestionSolvedToggleView(APIView):
                 - 404: 존재하지 않는 질문
         """
         try:
-            question = Question.objects.select_related("user").get(id=question_id)
+            # 서비스로 질문 조회 및 검증
+            question = QuestionService.get_question_with_validation(question_id)
+            if not question:
+                return APIResponse.not_found(message="존재하지 않는 질문입니다.")
 
-            # 작성자만 변경 가능
-            if question.user != request.user:
-                return APIResponse.forbidden(message="질문 작성자만 해결 여부를 변경할 수 있습니다.")
+            # 서비스로 권한 확인
+            try:
+                QuestionService.check_question_permission(question, request.user)
+            except PermissionError as e:
+                return APIResponse.forbidden(message=str(e))
 
             # 상태 토글
             if question.is_solved:
@@ -330,8 +341,6 @@ class QuestionSolvedToggleView(APIView):
             serializer = QuestionDetailSerializer(question)
             return APIResponse.success(message="해결 여부가 변경되었습니다.", data=serializer.data)
 
-        except Question.DoesNotExist:
-            return APIResponse.not_found(message="존재하지 않는 질문입니다.")
         except Exception as e:
             return APIResponse.from_exception(e, message="상태 변경에 실패했습니다.")
 
