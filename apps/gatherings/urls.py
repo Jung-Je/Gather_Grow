@@ -16,6 +16,7 @@ from apps.gatherings.views.gathering_views import (
 )
 from apps.gatherings.views.member_views import (
     GatheringMemberListView,
+    LeaderTransferView,
     MemberApprovalView,
     MemberCancelJoinView,
     MemberJoinView,
@@ -50,4 +51,5 @@ urlpatterns = [
     path("<int:gathering_id>/my-status/", MemberStatusCheckView.as_view(), name="member-status-check"),
     path("members/<int:member_id>/approval/", MemberApprovalView.as_view(), name="member-approval"),
     path("<int:gathering_id>/members/<int:member_id>/remove/", MemberRemoveView.as_view(), name="member-remove"),
+    path("<int:gathering_id>/transfer-leadership/", LeaderTransferView.as_view(), name="leader-transfer"),
 ]
