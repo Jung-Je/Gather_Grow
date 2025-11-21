@@ -1,8 +1,6 @@
 import logging
 from typing import Optional
 
-from django.db.models import Q, QuerySet
-
 from apps.communitys.models import Question
 
 logger = logging.getLogger(__name__)
