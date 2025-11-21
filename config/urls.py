@@ -45,7 +45,7 @@ urlpatterns = [
     path("api/v1/users/", include("apps.users.urls")),
     path("api/v1/gatherings/", include("apps.gatherings.urls")),
     path("api/v1/chat/", include("apps.chat.urls")),
-    # path("api/v1/communities/", include("apps.communitys.urls")),
+    path("api/v1/communitys/", include("apps.communitys.urls")),
 ]
 
 # 개발 환경에서 미디어 파일 서빙
