@@ -10,17 +10,21 @@ class AnswerService:
     """답변 관련 비즈니스 로직을 처리하는 서비스 클래스"""
 
     @staticmethod
-    def check_answer_permission(answer: Answer, user) -> None:
+    def check_answer_permission(answer: Answer, user, allow_question_author: bool = False) -> None:
         """답변 작성자 권한 확인
 
         Args:
             answer: 답변 객체
             user: 현재 사용자
+            allow_question_author: 질문 작성자도 허용할지 여부 (삭제 시 True)
 
         Raises:
             PermissionError: 작성자가 아닌 경우
         """
-        if answer.user != user:
+        is_answer_author = answer.user == user
+        is_question_author = allow_question_author and answer.question.user == user
+
+        if not (is_answer_author or is_question_author):
             logger.warning(
                 f"Unauthorized answer access attempt: user_id={user.id} tried to access answer_id={answer.id} (owner: user_id={answer.user_id})"
             )

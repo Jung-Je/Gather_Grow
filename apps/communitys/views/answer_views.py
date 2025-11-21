@@ -240,7 +240,7 @@ class AnswerDetailView(APIView):
 
     @extend_schema(
         summary="답변 삭제",
-        description="답변을 삭제합니다. 작성자만 삭제할 수 있습니다.",
+        description="답변을 삭제합니다. 답변 작성자 또는 질문 작성자가 삭제할 수 있습니다.",
         responses={
             200: OpenApiResponse(description="답변 삭제 성공"),
             401: OpenApiResponse(description="인증 필요"),
@@ -254,7 +254,7 @@ class AnswerDetailView(APIView):
 
         Args:
             answer_id: 답변 ID
-            request: HTTP 요청 객체 (작성자만 가능)
+            request: HTTP 요청 객체 (답변 작성자 또는 질문 작성자만 가능)
 
         Returns:
             APIResponse:
@@ -269,9 +269,9 @@ class AnswerDetailView(APIView):
             if not answer:
                 return APIResponse.not_found(message="존재하지 않는 답변입니다.")
 
-            # 서비스로 권한 확인
+            # 서비스로 권한 확인 (질문 작성자도 삭제 가능)
             try:
-                AnswerService.check_answer_permission(answer, request.user)
+                AnswerService.check_answer_permission(answer, request.user, allow_question_author=True)
             except PermissionError as e:
                 return APIResponse.forbidden(message=str(e))
 
