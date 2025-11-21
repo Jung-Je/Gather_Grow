@@ -252,3 +252,54 @@ class MemberService:
             role=GatheringMember.MemberRole.LEADER,
             is_active=True,
         ).exists()
+
+    @staticmethod
+    @transaction.atomic
+    def transfer_leadership(gathering_id: int, new_leader_id: int) -> dict:
+        """리더 위임
+
+        Args:
+            gathering_id: 모임 ID
+            new_leader_id: 새 리더의 user ID
+
+        Returns:
+            dict: 변경된 정보 (old_leader, new_leader)
+
+        Raises:
+            ValueError: 위임 불가 조건
+        """
+        # select_for_update로 락 획득 - race condition 방지
+        gathering = Gathering.objects.select_for_update().get(id=gathering_id)
+
+        # 현재 리더 멤버 조회
+        old_leader_member = GatheringMember.objects.select_for_update().get(
+            gathering=gathering, role=GatheringMember.MemberRole.LEADER, is_active=True
+        )
+
+        # 새 리더 멤버 조회
+        new_leader_member = GatheringMember.objects.select_for_update().get(
+            user_id=new_leader_id,
+            gathering=gathering,
+            status=GatheringMember.MemberStatus.APPROVED,
+            is_active=True,
+        )
+
+        # 기존 리더를 participant로 변경
+        old_leader_member.role = GatheringMember.MemberRole.PARTICIPANT
+        old_leader_member.save(update_fields=["role", "updated_at"])
+
+        # 새 리더를 leader로 변경
+        new_leader_member.role = GatheringMember.MemberRole.LEADER
+        new_leader_member.save(update_fields=["role", "updated_at"])
+
+        # Gathering의 user도 변경
+        old_leader_id = gathering.user.id
+        gathering.user_id = new_leader_id
+        gathering.save(update_fields=["user", "updated_at"])
+
+        logger.info(
+            f"Leadership transferred: gathering_id={gathering_id}, "
+            f"old_leader_id={old_leader_id}, new_leader_id={new_leader_id}"
+        )
+
+        return {"old_leader_id": old_leader_id, "new_leader_id": new_leader_id, "gathering_id": gathering_id}
