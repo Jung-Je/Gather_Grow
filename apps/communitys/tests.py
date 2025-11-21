@@ -254,7 +254,7 @@ class QuestionAPITestCase(APITestCase):
         )
 
         self.client.force_authenticate(user=self.user1)
-        url = "/api/v1/communitys/questions/me/"
+        url = "/api/v1/communitys/questions/my/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -470,7 +470,7 @@ class AnswerAPITestCase(APITestCase):
         )
 
         self.client.force_authenticate(user=self.user2)
-        url = "/api/v1/communitys/answers/me/"
+        url = "/api/v1/communitys/answers/my/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
