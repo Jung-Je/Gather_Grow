@@ -1,5 +1,6 @@
 from typing import Any
 
+from django.db.models import Count, Q
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiResponse,
@@ -80,8 +81,12 @@ class QuestionListView(APIView):
         if is_solved is not None:
             is_solved = is_solved.lower() == "true"
 
-        # 질문 목록 조회
-        queryset = Question.objects.select_related("category", "user").all()
+        # 질문 목록 조회 (N+1 쿼리 방지를 위한 annotate 추가)
+        queryset = (
+            Question.objects.select_related("category", "user")
+            .annotate(answer_count=Count("answers"))
+            .all()
+        )
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -90,8 +95,6 @@ class QuestionListView(APIView):
             queryset = queryset.filter(is_solved=is_solved)
 
         if search:
-            from django.db.models import Q
-
             queryset = queryset.filter(Q(title__icontains=search) | Q(content__icontains=search))
 
         queryset = queryset.order_by("-created_at")
@@ -381,7 +384,12 @@ class MyQuestionListView(APIView):
         if is_solved is not None:
             is_solved = is_solved.lower() == "true"
 
-        queryset = Question.objects.filter(user=request.user).select_related("category", "user")
+        # N+1 쿼리 방지를 위한 annotate 추가
+        queryset = (
+            Question.objects.filter(user=request.user)
+            .select_related("category", "user")
+            .annotate(answer_count=Count("answers"))
+        )
 
         if is_solved is not None:
             queryset = queryset.filter(is_solved=is_solved)
