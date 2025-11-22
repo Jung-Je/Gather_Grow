@@ -82,11 +82,7 @@ class QuestionListView(APIView):
             is_solved = is_solved.lower() == "true"
 
         # 질문 목록 조회 (N+1 쿼리 방지를 위한 annotate 추가)
-        queryset = (
-            Question.objects.select_related("category", "user")
-            .annotate(answer_count=Count("answers"))
-            .all()
-        )
+        queryset = Question.objects.select_related("category", "user").annotate(answer_count=Count("answers")).all()
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
