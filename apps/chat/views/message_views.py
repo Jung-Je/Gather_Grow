@@ -86,23 +86,20 @@ class ChatMessageListView(APIView):
         try:
             # 권한 확인: 승인된 모임 멤버만 조회 가능
             ChatMessageService.check_member_permission(gathering_id=gathering_id, user=request.user)
-
-            # 메시지 목록 조회
-            messages = ChatMessageService.get_messages(gathering_id=gathering_id)
-
-            # 페이지네이션
-            paginator = ChatMessagePagination()
-            paginated_messages = paginator.paginate_queryset(messages, request)
-
-            serializer = ChatMessageListSerializer(paginated_messages, many=True)
-            return paginator.get_paginated_response(serializer.data)
-
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
         except PermissionError as e:
             return APIResponse.forbidden(message=str(e))
-        except Exception as e:
-            return APIResponse.from_exception(e, message="채팅 메시지 조회에 실패했습니다.")
+
+        # 메시지 목록 조회
+        messages = ChatMessageService.get_messages(gathering_id=gathering_id)
+
+        # 페이지네이션
+        paginator = ChatMessagePagination()
+        paginated_messages = paginator.paginate_queryset(messages, request)
+
+        serializer = ChatMessageListSerializer(paginated_messages, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     @extend_schema(
         summary="채팅 메시지 전송",
@@ -153,25 +150,22 @@ class ChatMessageListView(APIView):
         try:
             # 권한 확인: 승인된 모임 멤버만 메시지 전송 가능
             ChatMessageService.check_member_permission(gathering_id=gathering_id, user=request.user)
-
-            # 데이터 검증
-            serializer = ChatMessageCreateSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-
-            # 메시지 생성
-            message = ChatMessageService.create_message(
-                gathering_id=gathering_id,
-                user=request.user,
-                message_text=serializer.validated_data.get("message"),
-                image=serializer.validated_data.get("image"),
-            )
-
-            result_serializer = ChatMessageListSerializer(message)
-            return APIResponse.created(message="메시지를 전송했습니다.", data=result_serializer.data)
-
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
         except PermissionError as e:
             return APIResponse.forbidden(message=str(e))
-        except Exception as e:
-            return APIResponse.from_exception(e, message="메시지 전송에 실패했습니다.")
+
+        # 데이터 검증
+        serializer = ChatMessageCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # 메시지 생성
+        message = ChatMessageService.create_message(
+            gathering_id=gathering_id,
+            user=request.user,
+            message_text=serializer.validated_data.get("message"),
+            image=serializer.validated_data.get("image"),
+        )
+
+        result_serializer = ChatMessageListSerializer(message)
+        return APIResponse.created(message="메시지를 전송했습니다.", data=result_serializer.data)
