@@ -186,3 +186,50 @@ class MemberRemoveSerializer(serializers.Serializer):
             raise serializers.ValidationError("모임장은 강제 탈퇴할 수 없습니다.")
 
         return attrs
+
+
+class LeaderTransferSerializer(serializers.Serializer):
+    """리더 위임용 Serializer"""
+
+    new_leader_id = serializers.IntegerField(required=True)
+
+    def validate_new_leader_id(self, value):
+        """새 리더 유효성 검증
+
+        Args:
+            value (int): 새 리더의 user ID
+
+        Returns:
+            int: 검증된 user ID
+
+        Raises:
+            serializers.ValidationError: 유효하지 않은 새 리더인 경우
+        """
+        user = self.context["request"].user
+        gathering_id = self.context.get("gathering_id")
+
+        # 모임 존재 확인
+        try:
+            from apps.gatherings.models import Gathering
+
+            gathering = Gathering.objects.get(id=gathering_id)
+        except Gathering.DoesNotExist:
+            raise serializers.ValidationError("존재하지 않는 모임입니다.")
+
+        # 현재 사용자가 모임장인지 확인
+        if gathering.user.id != user.id:
+            raise serializers.ValidationError("모임장만 리더를 위임할 수 있습니다.")
+
+        # 자기 자신에게는 위임 불가
+        if value == user.id:
+            raise serializers.ValidationError("자기 자신에게는 리더를 위임할 수 없습니다.")
+
+        # 새 리더가 승인된 멤버인지 확인
+        try:
+            new_leader_member = GatheringMember.objects.get(
+                user_id=value, gathering_id=gathering_id, status=GatheringMember.MemberStatus.APPROVED, is_active=True
+            )
+        except GatheringMember.DoesNotExist:
+            raise serializers.ValidationError("새 리더는 승인된 멤버여야 합니다.")
+
+        return value

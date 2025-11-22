@@ -50,9 +50,11 @@ class Question(BaseModel):
         status = "✓" if self.is_solved else "?"
         return f"[{status}] {self.title}"
 
-    @property
-    def answer_count(self):
+    def get_answer_count(self):
         """답변 개수를 반환합니다.
+
+        WARNING: N+1 쿼리를 유발할 수 있습니다.
+        대신 queryset에서 .annotate(answer_count=Count('answers'))를 사용하세요.
 
         Returns:
             int: 해당 질문에 달린 답변 개수

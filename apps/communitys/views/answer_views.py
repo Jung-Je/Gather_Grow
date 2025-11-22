@@ -1,6 +1,7 @@
 from typing import Any
 
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
@@ -127,27 +128,24 @@ class AnswerListView(APIView):
         try:
             # 질문 존재 여부 확인
             question = Question.objects.get(id=question_id)
-
-            # 데이터에 question_id 추가
-            data = request.data.copy()
-            data["question"] = question_id
-
-            # 데이터 검증
-            serializer = AnswerCreateSerializer(data=data)
-            serializer.is_valid(raise_exception=True)
-
-            # 답변 생성
-            answer = Answer.objects.create(
-                question=question, user=request.user, content=serializer.validated_data["content"]
-            )
-
-            result_serializer = AnswerDetailSerializer(answer)
-            return APIResponse.created(message="답변이 작성되었습니다.", data=result_serializer.data)
-
         except Question.DoesNotExist:
             return APIResponse.not_found(message="존재하지 않는 질문입니다.")
-        except Exception as e:
-            return APIResponse.from_exception(e, message="답변 작성에 실패했습니다.")
+
+        # 데이터에 question_id 추가
+        data = request.data.copy()
+        data["question"] = question_id
+
+        # 데이터 검증
+        serializer = AnswerCreateSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        # 답변 생성
+        answer = Answer.objects.create(
+            question=question, user=request.user, content=serializer.validated_data["content"]
+        )
+
+        result_serializer = AnswerDetailSerializer(answer)
+        return APIResponse.created(message="답변이 작성되었습니다.", data=result_serializer.data)
 
 
 class AnswerDetailView(APIView):
@@ -212,31 +210,27 @@ class AnswerDetailView(APIView):
                 - 403: 권한 없음
                 - 404: 존재하지 않는 답변
         """
+        # 서비스로 답변 조회 및 검증
+        answer = AnswerService.get_answer_with_validation(answer_id)
+        if not answer:
+            return APIResponse.not_found(message="존재하지 않는 답변입니다.")
+
+        # 서비스로 권한 확인
         try:
-            # 서비스로 답변 조회 및 검증
-            answer = AnswerService.get_answer_with_validation(answer_id)
-            if not answer:
-                return APIResponse.not_found(message="존재하지 않는 답변입니다.")
+            AnswerService.check_answer_permission(answer, request.user)
+        except PermissionError as e:
+            return APIResponse.forbidden(message=str(e))
 
-            # 서비스로 권한 확인
-            try:
-                AnswerService.check_answer_permission(answer, request.user)
-            except PermissionError as e:
-                return APIResponse.forbidden(message=str(e))
+        # 데이터 검증
+        serializer = AnswerUpdateSerializer(instance=answer, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
 
-            # 데이터 검증
-            serializer = AnswerUpdateSerializer(instance=answer, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
+        # 답변 업데이트
+        answer.content = serializer.validated_data["content"]
+        answer.save()
 
-            # 답변 업데이트
-            answer.content = serializer.validated_data["content"]
-            answer.save()
-
-            result_serializer = AnswerDetailSerializer(answer)
-            return APIResponse.success(message="답변이 수정되었습니다.", data=result_serializer.data)
-
-        except Exception as e:
-            return APIResponse.from_exception(e, message="답변 수정에 실패했습니다.")
+        result_serializer = AnswerDetailSerializer(answer)
+        return APIResponse.success(message="답변이 수정되었습니다.", data=result_serializer.data)
 
     @extend_schema(
         summary="답변 삭제",
@@ -263,23 +257,19 @@ class AnswerDetailView(APIView):
                 - 403: 권한 없음
                 - 404: 존재하지 않는 답변
         """
+        # 서비스로 답변 조회 및 검증
+        answer = AnswerService.get_answer_with_validation(answer_id)
+        if not answer:
+            return APIResponse.not_found(message="존재하지 않는 답변입니다.")
+
+        # 서비스로 권한 확인 (질문 작성자도 삭제 가능)
         try:
-            # 서비스로 답변 조회 및 검증
-            answer = AnswerService.get_answer_with_validation(answer_id)
-            if not answer:
-                return APIResponse.not_found(message="존재하지 않는 답변입니다.")
+            AnswerService.check_answer_permission(answer, request.user, allow_question_author=True)
+        except PermissionError as e:
+            return APIResponse.forbidden(message=str(e))
 
-            # 서비스로 권한 확인 (질문 작성자도 삭제 가능)
-            try:
-                AnswerService.check_answer_permission(answer, request.user, allow_question_author=True)
-            except PermissionError as e:
-                return APIResponse.forbidden(message=str(e))
-
-            answer.delete()
-            return APIResponse.success(message="답변이 삭제되었습니다.")
-
-        except Exception as e:
-            return APIResponse.from_exception(e, message="답변 삭제에 실패했습니다.")
+        answer.delete()
+        return APIResponse.success(message="답변이 삭제되었습니다.")
 
 
 class MyAnswerListView(APIView):

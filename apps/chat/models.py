@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import models
 
@@ -57,6 +58,22 @@ class ChatMessage(BaseModel):
         """
         msg_preview = self.message[:30] if self.message else "[이미지]"
         return f"[{self.gathering.title}] {self.user.username}: {msg_preview}"
+
+    def clean(self):
+        """모델 유효성 검증
+
+        메시지 또는 이미지 중 최소 하나는 있어야 합니다.
+
+        Raises:
+            ValidationError: 메시지와 이미지가 모두 없는 경우
+        """
+        if not self.message and not self.image:
+            raise ValidationError("메시지 내용 또는 이미지 중 최소 하나는 입력해야 합니다.")
+
+    def save(self, *args, **kwargs):
+        """모델 저장 전 clean 메서드 호출"""
+        self.clean()
+        super().save(*args, **kwargs)
 
     @property
     def has_image(self):
