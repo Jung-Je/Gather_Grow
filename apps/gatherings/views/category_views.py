@@ -123,25 +123,22 @@ class CategoryManageView(APIView):
                 - 201: 카테고리 생성 성공
                 - 400: 잘못된 입력 데이터
         """
+        serializer = CategorySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        name = serializer.validated_data["name"]
+        description = serializer.validated_data.get("description")
+        parent_id = serializer.validated_data.get("parent")
+
         try:
-            serializer = CategorySerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-
-            name = serializer.validated_data["name"]
-            description = serializer.validated_data.get("description")
-            parent_id = serializer.validated_data.get("parent")
-
             category = CategoryService.create_category(
                 name=name, description=description, parent_id=parent_id.id if parent_id else None
             )
-
-            result_serializer = CategorySerializer(category)
-            return APIResponse.created(message="카테고리가 생성되었습니다.", data=result_serializer.data)
-
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
-        except Exception as e:
-            return APIResponse.from_exception(e, message="카테고리 생성에 실패했습니다.")
+
+        result_serializer = CategorySerializer(category)
+        return APIResponse.created(message="카테고리가 생성되었습니다.", data=result_serializer.data)
 
     @extend_schema(
         summary="카테고리 수정 (관리자)",
@@ -170,19 +167,16 @@ class CategoryManageView(APIView):
                 - 400: 잘못된 입력 데이터
                 - 404: 존재하지 않는 카테고리
         """
+        name = request.data.get("name")
+        description = request.data.get("description")
+
         try:
-            name = request.data.get("name")
-            description = request.data.get("description")
-
             category = CategoryService.update_category(category_id=category_id, name=name, description=description)
-
-            serializer = CategorySerializer(category)
-            return APIResponse.success(message="카테고리가 수정되었습니다.", data=serializer.data)
-
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
-        except Exception as e:
-            return APIResponse.from_exception(e, message="카테고리 수정에 실패했습니다.")
+
+        serializer = CategorySerializer(category)
+        return APIResponse.success(message="카테고리가 수정되었습니다.", data=serializer.data)
 
     @extend_schema(
         summary="카테고리 비활성화 (관리자)",
@@ -209,12 +203,10 @@ class CategoryManageView(APIView):
         """
         try:
             CategoryService.deactivate_category(category_id)
-            return APIResponse.success(message="카테고리가 비활성화되었습니다.")
-
         except ValueError as e:
             return APIResponse.bad_request(message=str(e))
-        except Exception as e:
-            return APIResponse.from_exception(e, message="카테고리 비활성화에 실패했습니다.")
+
+        return APIResponse.success(message="카테고리가 비활성화되었습니다.")
 
 
 class ParentCategoryListView(APIView):

@@ -18,7 +18,7 @@ class CategoryService:
         Returns:
             활성화된 카테고리 리스트
         """
-        return Category.objects.filter(is_active=True).order_by("name")
+        return Category.objects.filter(is_active=True).select_related("parent").order_by("name")
 
     @staticmethod
     def get_parent_categories() -> List[Category]:
@@ -39,7 +39,7 @@ class CategoryService:
         Returns:
             자식 카테고리 리스트
         """
-        return Category.objects.filter(parent_id=parent_id, is_active=True).order_by("name")
+        return Category.objects.filter(parent_id=parent_id, is_active=True).select_related("parent").order_by("name")
 
     @staticmethod
     def get_category_with_stats(category_id: int) -> Optional[Dict]:

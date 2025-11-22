@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+from django.db.models import Count
+
 from apps.communitys.models import Question
 
 logger = logging.getLogger(__name__)
@@ -37,11 +39,14 @@ class QuestionService:
             bool: 수정/삭제 가능 여부
         """
         # 답변이 달린 질문은 수정/삭제 불가
-        return question.answer_count == 0
+        # annotate된 answer_count가 있으면 사용, 없으면 직접 카운트
+        if hasattr(question, "answer_count"):
+            return question.answer_count == 0
+        return question.answers.count() == 0
 
     @staticmethod
     def get_question_with_validation(question_id: int) -> Optional[Question]:
-        """질문 조회 및 존재 여부 검증
+        """질문 조회 및 존재 여부 검증 (answer_count 포함)
 
         Args:
             question_id: 질문 ID
@@ -50,7 +55,11 @@ class QuestionService:
             Optional[Question]: 질문 객체 또는 None
         """
         try:
-            return Question.objects.select_related("category", "user").get(id=question_id)
+            return (
+                Question.objects.select_related("category", "user")
+                .annotate(answer_count=Count("answers"))
+                .get(id=question_id)
+            )
         except Question.DoesNotExist:
             logger.warning(f"Question not found: question_id={question_id}")
             return None

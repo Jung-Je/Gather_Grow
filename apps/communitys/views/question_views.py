@@ -1,10 +1,13 @@
 from typing import Any
 
+from django.db.models import Count, Q
+from django.db.utils import DatabaseError, IntegrityError
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiResponse,
     extend_schema,
 )
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
@@ -80,8 +83,8 @@ class QuestionListView(APIView):
         if is_solved is not None:
             is_solved = is_solved.lower() == "true"
 
-        # 질문 목록 조회
-        queryset = Question.objects.select_related("category", "user").all()
+        # 질문 목록 조회 (N+1 쿼리 방지를 위한 annotate 추가)
+        queryset = Question.objects.select_related("category", "user").annotate(answer_count=Count("answers")).all()
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -90,8 +93,6 @@ class QuestionListView(APIView):
             queryset = queryset.filter(is_solved=is_solved)
 
         if search:
-            from django.db.models import Q
-
             queryset = queryset.filter(Q(title__icontains=search) | Q(content__icontains=search))
 
         queryset = queryset.order_by("-created_at")
@@ -137,18 +138,14 @@ class QuestionListView(APIView):
                 - 400: 잘못된 입력 데이터
                 - 401: 인증 필요
         """
-        try:
-            serializer = QuestionCreateSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
+        serializer = QuestionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-            # 질문 생성
-            question = Question.objects.create(user=request.user, **serializer.validated_data)
+        # 질문 생성
+        question = Question.objects.create(user=request.user, **serializer.validated_data)
 
-            result_serializer = QuestionDetailSerializer(question)
-            return APIResponse.created(message="질문이 작성되었습니다.", data=result_serializer.data)
-
-        except Exception as e:
-            return APIResponse.from_exception(e, message="질문 작성에 실패했습니다.")
+        result_serializer = QuestionDetailSerializer(question)
+        return APIResponse.created(message="질문이 작성되었습니다.", data=result_serializer.data)
 
 
 class QuestionDetailView(APIView):
@@ -213,32 +210,28 @@ class QuestionDetailView(APIView):
                 - 401: 인증 필요
                 - 404: 존재하지 않는 질문
         """
+        # 서비스로 질문 조회 및 검증
+        question = QuestionService.get_question_with_validation(question_id)
+        if not question:
+            return APIResponse.not_found(message="존재하지 않는 질문입니다.")
+
+        # 서비스로 권한 확인
         try:
-            # 서비스로 질문 조회 및 검증
-            question = QuestionService.get_question_with_validation(question_id)
-            if not question:
-                return APIResponse.not_found(message="존재하지 않는 질문입니다.")
+            QuestionService.check_question_permission(question, request.user)
+        except PermissionError as e:
+            return APIResponse.forbidden(message=str(e))
 
-            # 서비스로 권한 확인
-            try:
-                QuestionService.check_question_permission(question, request.user)
-            except PermissionError as e:
-                return APIResponse.forbidden(message=str(e))
+        # instance를 전달하여 serializer 생성
+        serializer = QuestionUpdateSerializer(instance=question, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
 
-            # instance를 전달하여 serializer 생성
-            serializer = QuestionUpdateSerializer(instance=question, data=request.data, partial=True)
-            serializer.is_valid(raise_exception=True)
+        # 질문 업데이트
+        for key, value in serializer.validated_data.items():
+            setattr(question, key, value)
+        question.save()
 
-            # 질문 업데이트
-            for key, value in serializer.validated_data.items():
-                setattr(question, key, value)
-            question.save()
-
-            result_serializer = QuestionDetailSerializer(question)
-            return APIResponse.success(message="질문이 수정되었습니다.", data=result_serializer.data)
-
-        except Exception as e:
-            return APIResponse.from_exception(e, message="질문 수정에 실패했습니다.")
+        result_serializer = QuestionDetailSerializer(question)
+        return APIResponse.success(message="질문이 수정되었습니다.", data=result_serializer.data)
 
     @extend_schema(
         summary="질문 삭제",
@@ -265,27 +258,23 @@ class QuestionDetailView(APIView):
                 - 401: 인증 필요
                 - 404: 존재하지 않는 질문
         """
+        # 서비스로 질문 조회 및 검증
+        question = QuestionService.get_question_with_validation(question_id)
+        if not question:
+            return APIResponse.not_found(message="존재하지 않는 질문입니다.")
+
+        # 서비스로 권한 확인
         try:
-            # 서비스로 질문 조회 및 검증
-            question = QuestionService.get_question_with_validation(question_id)
-            if not question:
-                return APIResponse.not_found(message="존재하지 않는 질문입니다.")
+            QuestionService.check_question_permission(question, request.user)
+        except PermissionError as e:
+            return APIResponse.forbidden(message=str(e))
 
-            # 서비스로 권한 확인
-            try:
-                QuestionService.check_question_permission(question, request.user)
-            except PermissionError as e:
-                return APIResponse.forbidden(message=str(e))
+        # 서비스로 수정/삭제 가능 여부 확인
+        if not QuestionService.can_modify_question(question):
+            return APIResponse.bad_request(message="답변이 달린 질문은 삭제할 수 없습니다.")
 
-            # 서비스로 수정/삭제 가능 여부 확인
-            if not QuestionService.can_modify_question(question):
-                return APIResponse.bad_request(message="답변이 달린 질문은 삭제할 수 없습니다.")
-
-            question.delete()
-            return APIResponse.success(message="질문이 삭제되었습니다.")
-
-        except Exception as e:
-            return APIResponse.from_exception(e, message="질문 삭제에 실패했습니다.")
+        question.delete()
+        return APIResponse.success(message="질문이 삭제되었습니다.")
 
 
 class QuestionSolvedToggleView(APIView):
@@ -318,29 +307,25 @@ class QuestionSolvedToggleView(APIView):
                 - 401: 인증 필요
                 - 404: 존재하지 않는 질문
         """
+        # 서비스로 질문 조회 및 검증
+        question = QuestionService.get_question_with_validation(question_id)
+        if not question:
+            return APIResponse.not_found(message="존재하지 않는 질문입니다.")
+
+        # 서비스로 권한 확인
         try:
-            # 서비스로 질문 조회 및 검증
-            question = QuestionService.get_question_with_validation(question_id)
-            if not question:
-                return APIResponse.not_found(message="존재하지 않는 질문입니다.")
+            QuestionService.check_question_permission(question, request.user)
+        except PermissionError as e:
+            return APIResponse.forbidden(message=str(e))
 
-            # 서비스로 권한 확인
-            try:
-                QuestionService.check_question_permission(question, request.user)
-            except PermissionError as e:
-                return APIResponse.forbidden(message=str(e))
+        # 상태 토글
+        if question.is_solved:
+            question.mark_as_unsolved()
+        else:
+            question.mark_as_solved()
 
-            # 상태 토글
-            if question.is_solved:
-                question.mark_as_unsolved()
-            else:
-                question.mark_as_solved()
-
-            serializer = QuestionDetailSerializer(question)
-            return APIResponse.success(message="해결 여부가 변경되었습니다.", data=serializer.data)
-
-        except Exception as e:
-            return APIResponse.from_exception(e, message="상태 변경에 실패했습니다.")
+        serializer = QuestionDetailSerializer(question)
+        return APIResponse.success(message="해결 여부가 변경되었습니다.", data=serializer.data)
 
 
 class MyQuestionListView(APIView):
@@ -381,7 +366,12 @@ class MyQuestionListView(APIView):
         if is_solved is not None:
             is_solved = is_solved.lower() == "true"
 
-        queryset = Question.objects.filter(user=request.user).select_related("category", "user")
+        # N+1 쿼리 방지를 위한 annotate 추가
+        queryset = (
+            Question.objects.filter(user=request.user)
+            .select_related("category", "user")
+            .annotate(answer_count=Count("answers"))
+        )
 
         if is_solved is not None:
             queryset = queryset.filter(is_solved=is_solved)

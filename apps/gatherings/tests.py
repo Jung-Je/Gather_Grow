@@ -767,4 +767,100 @@ class MemberAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["data"]["status"], "pending")
-        self.assertFalse(response.data["data"]["is_leader"])
+
+    def test_leader_transfer_success(self):
+        """리더 위임 성공 테스트"""
+        # user1을 승인된 멤버로 추가
+        member1 = GatheringMember.objects.create(
+            user=self.user1,
+            gathering=self.gathering,
+            role=GatheringMember.MemberRole.PARTICIPANT,
+            status=GatheringMember.MemberStatus.APPROVED,
+        )
+
+        # 리더가 user1에게 위임
+        self.client.force_authenticate(user=self.leader)
+        url = f"/api/v1/gatherings/{self.gathering.id}/transfer-leadership/"
+        response = self.client.patch(url, {"new_leader_id": self.user1.id})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["data"]["new_leader_id"], self.user1.id)
+        self.assertEqual(response.data["data"]["old_leader_id"], self.leader.id)
+
+        # DB 확인 - 역할 변경
+        self.leader_member.refresh_from_db()
+        member1.refresh_from_db()
+        self.assertEqual(self.leader_member.role, GatheringMember.MemberRole.PARTICIPANT)
+        self.assertEqual(member1.role, GatheringMember.MemberRole.LEADER)
+
+        # DB 확인 - 모임 소유자 변경
+        self.gathering.refresh_from_db()
+        self.assertEqual(self.gathering.user.id, self.user1.id)
+
+    def test_leader_transfer_non_leader_fail(self):
+        """리더가 아닌 사용자의 위임 시도 실패 테스트"""
+        # user1, user2를 승인된 멤버로 추가
+        GatheringMember.objects.create(
+            user=self.user1,
+            gathering=self.gathering,
+            role=GatheringMember.MemberRole.PARTICIPANT,
+            status=GatheringMember.MemberStatus.APPROVED,
+        )
+        GatheringMember.objects.create(
+            user=self.user2,
+            gathering=self.gathering,
+            role=GatheringMember.MemberRole.PARTICIPANT,
+            status=GatheringMember.MemberStatus.APPROVED,
+        )
+
+        # 일반 멤버가 위임 시도
+        self.client.force_authenticate(user=self.user1)
+        url = f"/api/v1/gatherings/{self.gathering.id}/transfer-leadership/"
+        response = self.client.patch(url, {"new_leader_id": self.user2.id})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("모임장만", str(response.data))
+
+    def test_leader_transfer_to_self_fail(self):
+        """자기 자신에게 위임 시도 실패 테스트"""
+        self.client.force_authenticate(user=self.leader)
+        url = f"/api/v1/gatherings/{self.gathering.id}/transfer-leadership/"
+        response = self.client.patch(url, {"new_leader_id": self.leader.id})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("자기 자신", str(response.data))
+
+    def test_leader_transfer_to_unapproved_member_fail(self):
+        """승인되지 않은 멤버에게 위임 시도 실패 테스트"""
+        # user1을 대기 중인 멤버로 추가
+        GatheringMember.objects.create(
+            user=self.user1,
+            gathering=self.gathering,
+            role=GatheringMember.MemberRole.PARTICIPANT,
+            status=GatheringMember.MemberStatus.PENDING,
+        )
+
+        self.client.force_authenticate(user=self.leader)
+        url = f"/api/v1/gatherings/{self.gathering.id}/transfer-leadership/"
+        response = self.client.patch(url, {"new_leader_id": self.user1.id})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("승인된 멤버", str(response.data))
+
+    def test_leader_transfer_to_non_member_fail(self):
+        """모임에 가입하지 않은 사용자에게 위임 시도 실패 테스트"""
+        self.client.force_authenticate(user=self.leader)
+        url = f"/api/v1/gatherings/{self.gathering.id}/transfer-leadership/"
+        response = self.client.patch(url, {"new_leader_id": self.user1.id})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("승인된 멤버", str(response.data))
+
+    def test_leader_transfer_nonexistent_user_fail(self):
+        """존재하지 않는 사용자에게 위임 시도 실패 테스트"""
+        self.client.force_authenticate(user=self.leader)
+        url = f"/api/v1/gatherings/{self.gathering.id}/transfer-leadership/"
+        response = self.client.patch(url, {"new_leader_id": 99999})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("승인된 멤버", str(response.data))

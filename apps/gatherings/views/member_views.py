@@ -10,6 +10,7 @@ from apps.common.responses import APIResponse
 from apps.gatherings.models import GatheringMember
 from apps.gatherings.serializers.member_serializer import (
     GatheringMemberSerializer,
+    LeaderTransferSerializer,
     MemberApprovalSerializer,
     MemberCancelSerializer,
     MemberJoinSerializer,
@@ -417,3 +418,55 @@ class MemberStatusCheckView(APIView):
         }
 
         return APIResponse.success(message="참여 상태 조회 성공", data=data)
+
+
+class LeaderTransferView(APIView):
+    """리더 위임 API"""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary="리더 위임",
+        description="모임장 권한을 다른 승인된 멤버에게 위임합니다. 현재 모임장만 사용 가능합니다.",
+        request=LeaderTransferSerializer,
+        responses={
+            200: OpenApiResponse(description="리더 위임 성공"),
+            400: OpenApiResponse(description="잘못된 요청 또는 위임 불가"),
+            401: OpenApiResponse(description="인증 필요"),
+            403: OpenApiResponse(description="권한 없음 (모임장 아님)"),
+            404: OpenApiResponse(description="존재하지 않는 모임 또는 멤버"),
+        },
+        tags=["모임 멤버"],
+    )
+    def patch(self, request: Any, gathering_id: int) -> APIResponse:
+        """리더 위임
+
+        Args:
+            gathering_id: 모임 ID
+            request: HTTP 요청 객체 (모임장만 가능)
+                - new_leader_id (int): 새 리더의 user ID
+
+        Returns:
+            APIResponse:
+                - 200: 리더 위임 성공
+                - 400: 잘못된 요청 또는 위임 불가
+                - 401: 인증 필요
+                - 403: 권한 없음 (모임장 아님)
+                - 404: 존재하지 않는 모임 또는 멤버
+        """
+        try:
+            # Serializer 검증 (gathering_id를 context로 전달)
+            serializer = LeaderTransferSerializer(
+                data=request.data, context={"request": request, "gathering_id": gathering_id}
+            )
+            serializer.is_valid(raise_exception=True)
+
+            # Service 호출
+            result = MemberService.transfer_leadership(
+                gathering_id=gathering_id, new_leader_id=serializer.validated_data["new_leader_id"]
+            )
+
+            return APIResponse.success(message="리더 위임이 완료되었습니다.", data=result)
+
+        except Exception as e:
+            return APIResponse.from_exception(e, message="리더 위임에 실패했습니다.")
