@@ -72,24 +72,18 @@ class AuthenticationService:
             (사용자 정보, access_token, refresh_token) 튜플
         """
         email = data.get("email")
+        cache_key = f"login_attempts:{email}"
+        lockout_duration = 1800  # 30분 (초)
+        max_attempts = 5
 
-        # 로그인 실패 횟수 체크
-        try:
-            user = User.objects.get(email=email)
+        # Redis 캐시에서 로그인 실패 횟수 확인
+        attempts = cache.get(cache_key, 0)
 
-            # 5회 이상 실패시 계정 잠금 (30분)
-            if user.failed_login_attempts >= 5:
-                if user.last_failed_login:
-                    time_passed = timezone.now() - user.last_failed_login
-                    if time_passed.total_seconds() < 1800:  # 30분
-                        remaining_time = int(1800 - time_passed.total_seconds())
-                        raise ValueError(f"로그인 시도 횟수를 초과했습니다. {remaining_time}초 후에 다시 시도해주세요.")
-                    else:
-                        # 30분 지나면 초기화
-                        user.failed_login_attempts = 0
-                        user.save(update_fields=["failed_login_attempts"])
-        except User.DoesNotExist:
-            pass  # 존재하지 않는 이메일은 아래 serializer에서 처리
+        # 5회 이상 실패시 계정 잠금
+        if attempts >= max_attempts:
+            ttl = cache.ttl(cache_key) if hasattr(cache, "ttl") else lockout_duration
+            remaining_time = ttl if ttl > 0 else 0
+            raise ValueError(f"로그인 시도 횟수를 초과했습니다. {remaining_time}초 후에 다시 시도해주세요.")
 
         try:
             serializer = UserLoginSerializer(data=data)
@@ -98,10 +92,12 @@ class AuthenticationService:
             user = serializer.validated_data["user"]
             refresh = RefreshToken.for_user(user)
 
-            # 로그인 성공시 실패 횟수 초기화
-            user.failed_login_attempts = 0
+            # 로그인 성공시 캐시에서 실패 횟수 삭제
+            cache.delete(cache_key)
+
+            # last_login만 업데이트
             user.last_login = timezone.now()
-            user.save(update_fields=["failed_login_attempts", "last_login"])
+            user.save(update_fields=["last_login"])
 
             logger.info(
                 f"User login successful: user_id={user.id}, username={user.username}, "
@@ -112,20 +108,13 @@ class AuthenticationService:
             return user_data, str(refresh.access_token), str(refresh)
 
         except Exception as e:
-            # 로그인 실패시 횟수 증가
-            try:
-                user = User.objects.get(email=email)
-                user.failed_login_attempts += 1
-                user.last_failed_login = timezone.now()
-                user.save(update_fields=["failed_login_attempts", "last_failed_login"])
+            # 로그인 실패시 캐시에 횟수 증가 (30분 TTL)
+            new_attempts = attempts + 1
+            cache.set(cache_key, new_attempts, timeout=lockout_duration)
 
-                logger.warning(
-                    f"User login failed: user_id={user.id}, username={user.username}, "
-                    f"failed_attempts={user.failed_login_attempts}, reason={type(e).__name__}"
-                )
-            except User.DoesNotExist:
-                # 존재하지 않는 이메일로 로그인 시도 (보안을 위해 상세 정보는 로그하지 않음)
-                logger.warning(f"Login attempt with non-existent email")
+            logger.warning(
+                f"User login failed: email={email}, " f"failed_attempts={new_attempts}, reason={type(e).__name__}"
+            )
             raise e
 
     @staticmethod

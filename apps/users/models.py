@@ -150,10 +150,6 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     )
     location = models.CharField(max_length=100, blank=True, null=True, verbose_name="지역")
 
-    # 보안 관련 필드
-    failed_login_attempts = models.IntegerField(default=0, verbose_name="로그인 실패 횟수")
-    last_failed_login = models.DateTimeField(null=True, blank=True, verbose_name="마지막 로그인 실패 시각")
-
     # 탈퇴 관련 필드
     is_deleted = models.BooleanField(default=False, verbose_name="탈퇴 여부")
     deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="탈퇴 일시")

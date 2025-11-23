@@ -1,6 +1,6 @@
 import json
+import time
 import unittest
-from datetime import timedelta
 from unittest.mock import Mock, patch
 
 from django.conf import settings
@@ -8,7 +8,6 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -148,9 +147,10 @@ class LoginTestCase(BaseUserTestCase):
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # 실패 횟수 증가 확인
-        user.refresh_from_db()
-        self.assertEqual(user.failed_login_attempts, 1)
+        # Redis 캐시에서 실패 횟수 확인
+        cache_key = f"login_attempts:{self.test_email}"
+        attempts = cache.get(cache_key, 0)
+        self.assertEqual(attempts, 1)
 
     def test_login_nonexistent_user(self):
         """존재하지 않는 사용자로 로그인 실패"""
@@ -163,9 +163,10 @@ class LoginTestCase(BaseUserTestCase):
     def test_login_lockout_after_failures(self):
         """5회 실패 후 계정 잠금"""
         user = self.create_user()
-        user.failed_login_attempts = 5
-        user.last_failed_login = timezone.now()
-        user.save()
+
+        # Redis 캐시에 5회 실패 기록 설정
+        cache_key = f"login_attempts:{self.test_email}"
+        cache.set(cache_key, 5, timeout=1800)
 
         url = reverse("users:login")
         data = {"email": self.test_email, "password": self.test_password}
@@ -177,9 +178,13 @@ class LoginTestCase(BaseUserTestCase):
     def test_login_reset_after_lockout_period(self):
         """30분 후 로그인 시도 횟수 초기화"""
         user = self.create_user()
-        user.failed_login_attempts = 5
-        user.last_failed_login = timezone.now() - timedelta(minutes=31)
-        user.save()
+
+        # Redis 캐시에 5회 실패 기록 설정하되, TTL을 1초로 설정하여 즉시 만료되도록 함
+        cache_key = f"login_attempts:{self.test_email}"
+        cache.set(cache_key, 5, timeout=1)
+
+        # 캐시 만료 대기
+        time.sleep(1.1)
 
         url = reverse("users:login")
         data = {"email": self.test_email, "password": self.test_password}
@@ -187,8 +192,9 @@ class LoginTestCase(BaseUserTestCase):
         response = self.client.post(url, data, format="json")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        user.refresh_from_db()
-        self.assertEqual(user.failed_login_attempts, 0)
+        # 로그인 성공 후 캐시가 삭제되었는지 확인
+        attempts = cache.get(cache_key, 0)
+        self.assertEqual(attempts, 0)
 
 
 class TokenRefreshTestCase(BaseUserTestCase):
