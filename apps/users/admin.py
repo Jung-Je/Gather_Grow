@@ -31,7 +31,6 @@ class UserAdmin(BaseUserAdmin):
         "is_active",
         "is_staff",
         "is_deleted",
-        "failed_login_attempts",
         "last_login",
         "created_at",
     )
@@ -52,7 +51,6 @@ class UserAdmin(BaseUserAdmin):
         "updated_at",
         "deleted_at",
         "deletion_scheduled_at",
-        "last_failed_login",
         "profile_image_preview",
     )
 
@@ -72,17 +70,7 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
         ("권한", {"fields": ("role", "is_active", "is_staff", "is_superuser")}),
-        ("가입 정보", {"fields": ("joined_type",)}),
-        (
-            "보안 정보",
-            {
-                "fields": (
-                    "failed_login_attempts",
-                    "last_failed_login",
-                    "last_login",
-                )
-            },
-        ),
+        ("가입 정보", {"fields": ("joined_type", "last_login")}),
         (
             "탈퇴 정보",
             {
@@ -173,10 +161,6 @@ class UserAdmin(BaseUserAdmin):
     @admin.display(description="탈퇴", boolean=True)
     def is_deleted(self, obj):
         return obj.is_deleted
-
-    @admin.display(description="로그인실패")
-    def failed_login_attempts(self, obj):
-        return obj.failed_login_attempts
 
     @admin.display(description="최근로그인")
     def last_login(self, obj):
