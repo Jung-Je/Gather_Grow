@@ -207,6 +207,19 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
+# Cache 설정
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "gathergrow",
+        "TIMEOUT": 300,
+    }
+}
+
 # Channels (WebSocket) 설정
 CHANNEL_LAYERS = {
     "default": {
