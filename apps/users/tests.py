@@ -25,6 +25,7 @@ class BaseUserTestCase(APITestCase):
         self.test_email = "test@example.com"
         self.test_password = "TestPass123!@#"
         self.test_username = "testuser"
+        cache.clear()
 
     def create_user(self, **kwargs):
         """테스트용 사용자 생성"""

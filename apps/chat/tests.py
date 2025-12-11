@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -13,6 +14,7 @@ class ChatMessageAPITestCase(TestCase):
 
     def setUp(self):
         """테스트 데이터 설정"""
+        cache.clear()
         # 사용자 생성
         self.user1 = User.objects.create_user(email="user1@test.com", username="user1", password="testpass123!")
         self.user2 = User.objects.create_user(email="user2@test.com", username="user2", password="testpass123!")
