@@ -207,11 +207,11 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# Cache 설정
+# Cache 설정 (Redis DB 1번 사용)
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
+        "LOCATION": os.getenv("REDIS_CACHE_URL", "redis://127.0.0.1:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
@@ -220,12 +220,12 @@ CACHES = {
     }
 }
 
-# Channels (WebSocket) 설정
+# Channels (WebSocket) 설정 (Redis DB 0번 사용)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")],
+            "hosts": [os.getenv("REDIS_CHANNEL_URL", "redis://127.0.0.1:6379/0")],
         },
     },
 }
