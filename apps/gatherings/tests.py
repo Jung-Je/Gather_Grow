@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -14,6 +15,7 @@ class CategoryAPITestCase(APITestCase):
 
     def setUp(self):
         """테스트 데이터 준비"""
+        cache.clear()
         # 관리자 사용자 생성 (is_staff=True 필요)
         self.admin_user = User.objects.create_user(
             email="admin@test.com",
@@ -194,6 +196,7 @@ class GatheringAPITestCase(APITestCase):
 
     def setUp(self):
         """테스트 데이터 준비"""
+        cache.clear()
         # 사용자 생성
         self.user1 = User.objects.create_user(
             email="user1@test.com",
@@ -446,6 +449,7 @@ class MemberAPITestCase(APITestCase):
 
     def setUp(self):
         """테스트 데이터 준비"""
+        cache.clear()
         # 사용자 생성
         self.leader = User.objects.create_user(
             email="leader@test.com",
