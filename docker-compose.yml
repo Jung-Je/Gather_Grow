@@ -26,6 +26,7 @@ services:
     command: uv run gunicorn --bind 0.0.0.0:8000 config.wsgi:application
     volumes:
       - .:/app
+      - /app/.venv
       - static_volume:/app/staticfiles
     ports:
       - "8000:8000"
@@ -54,6 +55,7 @@ services:
     command: uv run daphne -b 0.0.0.0 -p 8001 config.asgi:application
     volumes:
       - .:/app
+      - /app/.venv
     ports:
       - "8001:8001"
     depends_on:
