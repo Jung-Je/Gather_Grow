@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -13,6 +14,7 @@ class QuestionAPITestCase(APITestCase):
 
     def setUp(self):
         """테스트 데이터 준비"""
+        cache.clear()
         # 사용자 생성
         self.user1 = User.objects.create_user(
             email="user1@test.com",
@@ -267,6 +269,7 @@ class AnswerAPITestCase(APITestCase):
 
     def setUp(self):
         """테스트 데이터 준비"""
+        cache.clear()
         # 사용자 생성
         self.user1 = User.objects.create_user(
             email="user1@test.com",
